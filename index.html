@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="S・V・O/C・O₂/Cのカードをつないで英文を作る、一人用の文型カードゲーム試作版"
+    />
+    <title>文型ゲーム | 試作版</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>文型ゲーム<span>α</span></h1>
+        </div>
+        <div class="header-actions">
+          <button id="themeButton" class="button button-ghost" type="button" aria-pressed="false">☾ ダーク</button>
+          <button id="rulesButton" class="button button-ghost" type="button">遊び方</button>
+          <button id="restartButton" class="button button-ghost is-hidden" type="button">スタート画面へ</button>
+        </div>
+      </header>
+
+      <section id="setupScreen" class="setup-card" aria-labelledby="setupTitle">
+        <div class="setup-copy">
+          <h2 id="setupTitle">カードを置いて、英文を完成させよう。</h2>
+          <p>
+            名詞・動詞・形容詞をS／V／O/C／O₂/Cへ置き、手札を先になくした人の勝ちです。
+            おかしな意味の文は歓迎。でも、英文の形はきっちり守ります。
+          </p>
+        </div>
+
+        <div class="setup-controls">
+          <label for="cpuCount">対戦するCPU</label>
+          <div class="segmented" id="cpuCount" role="radiogroup" aria-label="CPUの人数">
+            <button type="button" data-cpu-count="1" role="radio" aria-checked="false">1人</button>
+            <button type="button" data-cpu-count="2" role="radio" aria-checked="true" class="is-selected">2人</button>
+            <button type="button" data-cpu-count="3" role="radio" aria-checked="false">3人</button>
+            <button type="button" data-cpu-count="4" role="radio" aria-checked="false">4人</button>
+          </div>
+          <label for="cpuDifficulty">CPUのレベル</label>
+          <div class="segmented segmented-two" id="cpuDifficulty" role="radiogroup" aria-label="CPUのレベル">
+            <button type="button" data-cpu-difficulty="normal" role="radio" aria-checked="true" class="is-selected">ノーマル</button>
+            <button type="button" data-cpu-difficulty="hard" role="radio" aria-checked="false">ハード</button>
+          </div>
+          <button id="startButton" class="button button-primary button-large" type="button">
+            ゲームをはじめる
+          </button>
+          <p class="setup-note">おすすめ：あなた＋CPU 2人</p>
+        </div>
+      </section>
+
+      <section id="gameScreen" class="game-screen is-hidden" aria-live="polite">
+        <section class="game-status" aria-label="ゲーム状況">
+          <div class="turn-block">
+            <span class="status-label">手番</span>
+            <strong id="turnName">あなた</strong>
+          </div>
+          <p id="statusMessage" class="status-message">カードを選んでください。</p>
+          <div id="stockPile" class="stock-pile" role="img" aria-label="山札 0枚">
+            <span class="stock-cards" aria-hidden="true">
+              <i class="stock-card-back stock-card-back-3"></i>
+              <i class="stock-card-back stock-card-back-2"></i>
+              <i class="stock-card-back stock-card-back-1"></i>
+            </span>
+            <span class="stock-copy"><span>山札</span><strong><span id="deckCount">0</span>枚</strong></span>
+          </div>
+        </section>
+
+        <section id="opponents" class="opponents" aria-label="対戦相手"></section>
+
+        <section class="table-area" aria-labelledby="tableTitle">
+          <div class="table-heading">
+            <h2 id="tableTitle">場の英文</h2>
+            <div id="patternCandidates" class="pattern-candidates" aria-label="現在可能な文型"></div>
+          </div>
+
+          <div id="sentencePreview" class="sentence-preview">
+            <span class="preview-placeholder">カードを置くと、ここに英文が現れます。</span>
+          </div>
+
+          <div id="sentenceBoard" class="sentence-board" aria-label="英文のスロット"></div>
+
+          <div class="table-footer">
+            <button id="hintButton" class="button button-ghost" type="button">ヒント</button>
+          </div>
+        </section>
+
+        <section class="player-area" aria-labelledby="handTitle">
+          <div class="player-heading">
+            <h2 id="handTitle">あなたの手札 <span id="handCount">7</span>枚</h2>
+            <button id="drawButton" class="button button-draw" type="button" disabled>山札からとる</button>
+          </div>
+          <div id="hand" class="hand" aria-label="あなたの手札"></div>
+        </section>
+
+      </section>
+    </main>
+
+    <div id="toastRegion" class="toast-region" aria-live="assertive" aria-atomic="true"></div>
+
+    <div id="rulesModal" class="modal-backdrop is-hidden" role="presentation">
+      <section class="modal rules-modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+        <button id="closeRulesButton" class="modal-close" type="button" aria-label="遊び方を閉じる">×</button>
+        <h2 id="rulesTitle">遊び方</h2>
+        <ol class="rules-list">
+          <li>自分の番では、手札を光っているスロットへドラッグ＆ドロップします。タップ操作も使えます。</li>
+          <li>3番目はO/C、4番目はO₂/C共用です。動詞や置いたカードによって役割が変化します。</li>
+          <li>手番の人の枠が光ります。出せないときは、手元の「山札からとる」で1枚だけ引きます。</li>
+          <li>必要なスロットが全部埋まると英文完成。使ったカードは流れます。</li>
+          <li>引いたカードも出せなければパス。残っている全員が連続でパスすると、場のカードが流れます。</li>
+          <li>同じ存在が主語と目的語になった場合、目的語は自動的に再帰代名詞へ変わります。</li>
+          <li>手札を先になくした順に上がり。最後の1人まで順位を決めます。</li>
+        </ol>
+        <div class="rules-example">
+          <span>例</span>
+          <strong>The station loves itself.</strong>
+          <small>同じthe stationがSとOに置かれたため、Oがitselfへ変化</small>
+        </div>
+      </section>
+    </div>
+
+    <div id="completionModal" class="completion-backdrop is-hidden" role="presentation">
+      <section class="completion-card" role="dialog" aria-modal="true" aria-labelledby="completionTitle">
+        <h2 id="completionTitle">英文完成！</h2>
+        <div id="completionPatterns" class="completion-patterns"></div>
+        <p id="completionEnglish" class="completion-english"></p>
+        <div id="completionTranslations" class="completion-translations"></div>
+        <p id="completionNote" class="completion-note"></p>
+        <button id="continueButton" class="button button-primary" type="button">次のターンへ</button>
+        <div class="completion-timer" aria-hidden="true"></div>
+      </section>
+    </div>
+
+    <div id="resultModal" class="modal-backdrop is-hidden" role="presentation">
+      <section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+        <p class="result-burst" aria-hidden="true">★</p>
+        <h2 id="resultTitle">対戦終了！</h2>
+        <ol id="rankingList" class="ranking-list"></ol>
+        <div class="result-sentences">
+          <div class="result-sentences-heading">
+            <h3>今回完成した英文</h3>
+            <span id="resultSentenceCount">0文</span>
+          </div>
+          <ol id="resultSentenceList" class="result-sentence-list"></ol>
+        </div>
+        <button id="playAgainButton" class="button button-primary button-large" type="button">もう一度遊ぶ</button>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
