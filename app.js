@@ -1,6 +1,12 @@
 "use strict";
 
 const COMPLETION_CUT_IN_MS = 4000;
+const COMPLETION_REVEAL_DELAY_MS = 1100;
+const CPU_THINK_DELAY_MS = 1250;
+const CPU_CARD_TRAVEL_MS = 820;
+const CPU_DRAW_TRAVEL_MS = 600;
+const CPU_AFTER_DRAW_DELAY_MS = 700;
+const CPU_TURN_SETTLE_MS = 760;
 
 const PATTERNS = {
   SV: { slots: ["S", "V"], o1Role: null, xRole: null, description: "主語＋動詞" },
@@ -55,6 +61,7 @@ const state = {
   hasDrawn: false,
   consecutivePasses: 0,
   pendingCompletion: null,
+  completionRevealTimer: null,
   completionTimer: null,
   cpuTimer: null,
 };
@@ -78,6 +85,8 @@ const elements = {
   patternCandidates: document.querySelector("#patternCandidates"),
   sentencePreview: document.querySelector("#sentencePreview"),
   sentenceBoard: document.querySelector("#sentenceBoard"),
+  tableArea: document.querySelector(".table-area"),
+  completionBurst: document.querySelector("#completionBurst"),
   playerArea: document.querySelector(".player-area"),
   hand: document.querySelector("#hand"),
   handCount: document.querySelector("#handCount"),
@@ -328,6 +337,7 @@ function savedTheme() {
 
 function startGame() {
   clearTimeout(state.cpuTimer);
+  clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
   closeModal(elements.resultModal);
   closeModal(elements.completionModal);
@@ -346,6 +356,7 @@ function startGame() {
   state.hasDrawn = false;
   state.consecutivePasses = 0;
   state.pendingCompletion = null;
+  elements.tableArea.classList.remove("is-complete-flash");
 
   const cpuNames = ["CPU アオ", "CPU アカ", "CPU ミドリ", "CPU ムラサキ"];
   state.players = [
@@ -378,6 +389,7 @@ function startGame() {
 
 function returnToSetup() {
   clearTimeout(state.cpuTimer);
+  clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
   state.gameStarted = false;
   state.gameOver = false;
@@ -385,6 +397,7 @@ function returnToSetup() {
   state.consecutivePasses = 0;
   state.pendingCompletion = null;
   state.selectedCardId = null;
+  elements.tableArea.classList.remove("is-complete-flash");
   closeModal(elements.rulesModal);
   closeModal(elements.completionModal);
   closeModal(elements.resultModal);
@@ -735,7 +748,7 @@ function executeAction(playerIndex, action) {
     state.history.push(entry);
     state.pendingCompletion = entry;
     render();
-    showCompletion(entry);
+    beginCompletionSequence(entry);
     return;
   }
 
@@ -744,10 +757,22 @@ function executeAction(playerIndex, action) {
     if (state.gameOver) return finishGame();
     state.busy = false;
     advanceTurn();
-  }, 470);
+  }, player.isHuman ? 470 : CPU_TURN_SETTLE_MS);
+}
+
+function beginCompletionSequence(entry) {
+  clearTimeout(state.completionRevealTimer);
+  elements.tableArea.classList.remove("is-complete-flash");
+  void elements.tableArea.offsetWidth;
+  elements.tableArea.classList.add("is-complete-flash");
+  state.completionRevealTimer = window.setTimeout(() => {
+    elements.tableArea.classList.remove("is-complete-flash");
+    if (state.pendingCompletion === entry && state.gameStarted) showCompletion(entry);
+  }, COMPLETION_REVEAL_DELAY_MS);
 }
 
 function showCompletion(entry) {
+  clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
   elements.completionPatterns.innerHTML = entry.analyses
     .map((analysis) => `<span class="pattern-chip is-locked">${analysis.pattern}</span>`)
@@ -772,7 +797,9 @@ function showCompletion(entry) {
 
 function continueAfterCompletion() {
   if (!state.pendingCompletion) return;
+  clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
+  elements.tableArea.classList.remove("is-complete-flash");
   closeModal(elements.completionModal);
   state.pendingCompletion = null;
   discardField();
@@ -874,7 +901,7 @@ function scheduleCpuTurn() {
   if (!state.gameStarted || state.gameOver || state.busy) return;
   const player = currentPlayer();
   if (!player || player.isHuman || player.rank !== null) return;
-  state.cpuTimer = window.setTimeout(runCpuTurn, 760);
+  state.cpuTimer = window.setTimeout(runCpuTurn, CPU_THINK_DELAY_MS);
 }
 
 function actionWouldComplete(action, player) {
@@ -933,14 +960,14 @@ async function runCpuTurn() {
   const drawnCard = drawCardFromStock();
   if (drawnCard) {
     render();
-    await animateCpuDraw(player, 300);
+    await animateCpuDraw(player, CPU_DRAW_TRAVEL_MS);
     player.hand.push(drawnCard);
     sortHand(player.hand);
     render();
   }
 
   if (!drawnCard || getLegalActionsForCard(drawnCard).length === 0) {
-    return window.setTimeout(finishPass, 500);
+    return window.setTimeout(finishPass, CPU_AFTER_DRAW_DELAY_MS);
   }
 
   showToast(`${player.name}が1枚引き、出せるカードを見つけました。`, "info");
@@ -950,7 +977,7 @@ async function runCpuTurn() {
     window.setTimeout(async () => {
       await animateCpuPlay(player, action.slot);
       executeAction(state.currentPlayerIndex, action);
-    }, 360);
+    }, CPU_AFTER_DRAW_DELAY_MS);
     return;
   }
 }
@@ -981,7 +1008,7 @@ function animateFlyingBack(source, target, options = {}) {
 function animateCpuPlay(player, slot) {
   const source = document.querySelector(`[data-player-id="${player.id}"] .cpu-card-back`);
   const target = document.querySelector(`[data-slot="${slot}"]`);
-  return animateFlyingBack(source, target, { rotation: 180, duration: 580 });
+  return animateFlyingBack(source, target, { rotation: 180, duration: CPU_CARD_TRAVEL_MS });
 }
 
 function animateCpuDraw(player, duration = 500) {
@@ -1103,8 +1130,6 @@ function renderBoard() {
   const human = state.players[0];
   const selectedCard = human?.hand.find((card) => card.id === state.selectedCardId) ?? null;
   const selectedActions = selectedCard ? getLegalActionsForCard(selectedCard) : [];
-  elements.sentenceBoard.classList.toggle("is-complete", Boolean(state.pendingCompletion));
-
   elements.sentenceBoard.innerHTML = Object.keys(BASE_SLOT_META)
     .map((slot) => {
       const placement = state.field[slot];
@@ -1475,6 +1500,8 @@ function runSelfChecks() {
     [buildDeck().length === 96, "デッキ枚数"],
     [!allActivePlayersPassed(2, 3) && allActivePlayersPassed(3, 3), "全員パス時の場流し"],
     [COMPLETION_CUT_IN_MS === 4000, "完成カットイン4秒"],
+    [COMPLETION_REVEAL_DELAY_MS === 1100 && Boolean(elements.completionBurst), "完成前の場演出"],
+    [CPU_THINK_DELAY_MS >= 1200 && CPU_CARD_TRAVEL_MS >= 800, "CPUの表示テンポ"],
   ];
   const failed = checks.filter(([passed]) => !passed).map(([, label]) => label);
   if (failed.length) console.error(`文型ゲーム自己診断エラー: ${failed.join("、")}`);
