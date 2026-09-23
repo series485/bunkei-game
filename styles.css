@@ -1101,6 +1101,7 @@ h2 {
 
 .completion-patterns {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
   margin: 17px 0 12px;
@@ -1139,6 +1140,7 @@ h2 {
   color: #162322;
   background: var(--accent);
   font-size: 0.63rem;
+  white-space: nowrap;
 }
 
 .completion-note {

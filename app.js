@@ -9,24 +9,42 @@ const CPU_AFTER_DRAW_DELAY_MS = 700;
 const CPU_TURN_SETTLE_MS = 760;
 
 const PATTERNS = {
-  SV: { slots: ["S", "V"], o1Role: null, xRole: null, description: "主語＋動詞" },
-  SVC: { slots: ["S", "V", "O1"], o1Role: "C", xRole: null, description: "主語＋動詞＋補語" },
-  SVO: { slots: ["S", "V", "O1"], o1Role: "O1", xRole: null, description: "主語＋動詞＋目的語" },
+  SV: { slots: ["S", "V"], o1Role: null, xRole: null, description: "主語＋動詞", schoolForm: "第1文型" },
+  SVC: {
+    slots: ["S", "V", "O1"],
+    o1Role: "C",
+    xRole: null,
+    description: "主語＋動詞＋補語",
+    schoolForm: "第2文型",
+  },
+  SVO: {
+    slots: ["S", "V", "O1"],
+    o1Role: "O1",
+    xRole: null,
+    description: "主語＋動詞＋目的語",
+    schoolForm: "第3文型",
+  },
   SVOO: {
     slots: ["S", "V", "O1", "X"],
     o1Role: "O1",
     xRole: "O2",
     description: "主語＋動詞＋間接目的語＋直接目的語",
+    schoolForm: "第4文型",
   },
   SVOC: {
     slots: ["S", "V", "O1", "X"],
     o1Role: "O1",
     xRole: "C",
     description: "主語＋動詞＋目的語＋補語",
+    schoolForm: "第5文型",
   },
 };
 
 const PATTERN_ORDER = ["SV", "SVC", "SVO", "SVOO", "SVOC"];
+
+function completedPatternLabel(pattern) {
+  return `${pattern}・${PATTERNS[pattern].schoolForm}`;
+}
 
 const BASE_SLOT_META = {
   S: { code: "S", name: "主語" },
@@ -775,14 +793,17 @@ function showCompletion(entry) {
   clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
   elements.completionPatterns.innerHTML = entry.analyses
-    .map((analysis) => `<span class="pattern-chip is-locked">${analysis.pattern}</span>`)
+    .map(
+      (analysis) =>
+        `<span class="pattern-chip is-locked">${escapeHtml(completedPatternLabel(analysis.pattern))}</span>`,
+    )
     .join("");
   elements.completionEnglish.textContent = entry.sentence;
   elements.completionTranslations.innerHTML = entry.analyses
     .map(
       (analysis) => `
         <div class="completion-translation">
-          <strong>${analysis.pattern}</strong>
+          <strong>${escapeHtml(completedPatternLabel(analysis.pattern))}</strong>
           <span>${escapeHtml(analysis.translation)}</span>
         </div>
       `,
@@ -1394,7 +1415,7 @@ function renderResult() {
     ? state.history
         .map((entry) => {
           const translations = entry.analyses
-            .map((analysis) => `${analysis.pattern}：${analysis.translation}`)
+            .map((analysis) => `${completedPatternLabel(analysis.pattern)}：${analysis.translation}`)
             .join("／");
           return `<li class="result-sentence-item"><strong>${escapeHtml(entry.sentence)}</strong><span>${escapeHtml(translations)}</span></li>`;
         })
@@ -1502,6 +1523,10 @@ function runSelfChecks() {
     [COMPLETION_CUT_IN_MS === 4000, "完成カットイン4秒"],
     [COMPLETION_REVEAL_DELAY_MS === 1100 && Boolean(elements.completionBurst), "完成前の場演出"],
     [CPU_THINK_DELAY_MS >= 1200 && CPU_CARD_TRAVEL_MS >= 800, "CPUの表示テンポ"],
+    [
+      PATTERN_ORDER.every((pattern, index) => completedPatternLabel(pattern) === `${pattern}・第${index + 1}文型`),
+      "完成時の第何文型表示",
+    ],
   ];
   const failed = checks.filter(([passed]) => !passed).map(([, label]) => label);
   if (failed.length) console.error(`文型ゲーム自己診断エラー: ${failed.join("、")}`);
