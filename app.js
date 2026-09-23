@@ -1,5 +1,7 @@
 "use strict";
 
+const COMPLETION_CUT_IN_MS = 4000;
+
 const PATTERNS = {
   SV: { slots: ["S", "V"], o1Role: null, xRole: null, description: "主語＋動詞" },
   SVC: { slots: ["S", "V", "O1"], o1Role: "C", xRole: null, description: "主語＋動詞＋補語" },
@@ -233,7 +235,9 @@ function buildDeck() {
 
   const verbDefinitions = [
     // 各文型を主役にしたカードを6枚ずつ収録。複数文型を取る動詞は併記する。
-    verb("run", "runs", "走る", ["SV"]),
+    verb("run", "runs", "走る／Oを経営する／Cになる", ["SV", "SVC", "SVO"], {
+      SVC: ["adjective"],
+    }),
     verb("sleep", "sleeps", "眠る", ["SV"]),
     verb("arrive", "arrives", "到着する", ["SV"]),
     verb("laugh", "laughs", "笑う", ["SV"]),
@@ -597,6 +601,7 @@ function japaneseTranslation(pattern, field = state.field) {
     swim: "泳ぐ",
   };
   const svo = {
+    run: "経営する",
     love: "愛する",
     like: "好む",
     use: "使う",
@@ -635,7 +640,7 @@ function japaneseTranslation(pattern, field = state.field) {
 
   if (pattern === "SVC") {
     if (lemma === "be") return `${s}は${japaneseComplement(oCard, "predicate")}。`;
-    if (["become", "turn", "get"].includes(lemma)) {
+    if (["become", "turn", "get", "run"].includes(lemma)) {
       return `${s}は${japaneseComplement(oCard, "adverbial")}なる。`;
     }
     if (lemma === "look") return `${s}は${japaneseComplement(oCard, "adverbial")}見える。`;
@@ -762,7 +767,7 @@ function showCompletion(entry) {
     ? entry.notes.join("／")
     : `${entry.completedBy}が完成させました。`;
   openModal(elements.completionModal);
-  state.completionTimer = window.setTimeout(continueAfterCompletion, 2800);
+  state.completionTimer = window.setTimeout(continueAfterCompletion, COMPLETION_CUT_IN_MS);
 }
 
 function continueAfterCompletion() {
@@ -1404,6 +1409,7 @@ function runSelfChecks() {
   const findOne = (label) => cards.find((card) => card.label === label);
   const [stationSubject, stationObject] = findAll("the station");
   const loveCard = findOne("love");
+  const runCard = findOne("run");
   const studentsCard = findOne("the students");
   const iCard = findOne("I");
   const tomCard = findOne("Tom");
@@ -1426,6 +1432,18 @@ function runSelfChecks() {
     V: { card: becomeCard },
     O1: { card: quietCard },
   };
+  const runSvcField = {
+    ...emptyField(),
+    S: { card: tomCard },
+    V: { card: runCard },
+    O1: { card: quietCard },
+  };
+  const runSvoField = {
+    ...emptyField(),
+    S: { card: tomCard },
+    V: { card: runCard },
+    O1: { card: stationObject },
+  };
   const ambiguousField = {
     S: { card: tomCard },
     V: { card: makeCard },
@@ -1445,11 +1463,18 @@ function runSelfChecks() {
     [sentenceText(reflexiveField, "SVO") === "The station loves itself.", "英文の空白"],
     [JSON.stringify(getCompletedPatterns(svcField)) === JSON.stringify(["SVC"]), "O/CのSVC判定"],
     [sentenceText(svcField, "SVC") === "Tom becomes quiet.", "O/CでのSVC完成"],
+    [JSON.stringify(runCard.patterns) === JSON.stringify(["SV", "SVC", "SVO"]), "runの三文型"],
+    [
+      japaneseTranslation("SVC", runSvcField) === "トムは静かになる。" &&
+        japaneseTranslation("SVO", runSvoField) === "トムはその駅を経営する。",
+      "runの文型別和訳",
+    ],
     [getCompletedPatterns(ambiguousField).length === 2, "O2/Cの二重解釈"],
     [JSON.stringify(getCandidatePatterns(adjectiveField)) === JSON.stringify(["SVOC"]), "形容詞によるSVOC確定"],
     [PATTERN_ORDER.every((pattern) => focusCounts[pattern] === 6), "5文型の動詞枚数バランス"],
     [buildDeck().length === 96, "デッキ枚数"],
     [!allActivePlayersPassed(2, 3) && allActivePlayersPassed(3, 3), "全員パス時の場流し"],
+    [COMPLETION_CUT_IN_MS === 4000, "完成カットイン4秒"],
   ];
   const failed = checks.filter(([passed]) => !passed).map(([, label]) => label);
   if (failed.length) console.error(`文型ゲーム自己診断エラー: ${failed.join("、")}`);
