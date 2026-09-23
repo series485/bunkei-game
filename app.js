@@ -1,12 +1,28 @@
 "use strict";
 
 const COMPLETION_CUT_IN_MS = 4000;
-const COMPLETION_REVEAL_DELAY_MS = 1100;
-const CPU_THINK_DELAY_MS = 1250;
+const COMPLETION_REVEAL_DELAY_MS = 720;
+const MATCH_INTRO_MS = 2100;
+const MISPLAY_CUT_IN_MS = 950;
+const END_CURTAIN_DURATION_MS = 1550;
+const CPU_THINK_DELAY_MS = Object.freeze({ normal: 1250, hard: 1000 });
 const CPU_CARD_TRAVEL_MS = 820;
 const CPU_DRAW_TRAVEL_MS = 600;
-const CPU_AFTER_DRAW_DELAY_MS = 700;
+const CPU_AFTER_DRAW_DELAY_MS = Object.freeze({ normal: 700, hard: 560 });
 const CPU_TURN_SETTLE_MS = 760;
+const SCORE_RANK_POINTS = [0, 8000, 4400, 2400, 1000];
+const SCORE_SPEED_MAX = 5200;
+const SCORE_SPEED_DECAY_SECONDS = 85;
+const SCORE_HARD_BONUS = 1400;
+const SCORE_EXTRA_CPU_BONUS = 400;
+const SCORE_MISTAKE_PENALTY = 300;
+const FIELD_FLUSH_MESSAGE = "全員が出せなかったため、場が流れました";
+const SCORE_TITLES = [
+  { minimum: 14000, name: "文型師範", key: "shihan" },
+  { minimum: 10000, name: "文型師匠", key: "shisho" },
+  { minimum: 6000, name: "文型弟子", key: "deshi" },
+  { minimum: Number.NEGATIVE_INFINITY, name: "文型見習い", key: "minarai" },
+];
 
 const PATTERNS = {
   SV: { slots: ["S", "V"], o1Role: null, xRole: null, description: "主語＋動詞", schoolForm: "第1文型" },
@@ -77,10 +93,16 @@ const state = {
   gameOver: false,
   busy: false,
   hasDrawn: false,
+  drawnCardId: null,
   consecutivePasses: 0,
+  humanDecisionMs: 0,
+  humanTurnStartedAt: null,
+  humanPenalties: 0,
   pendingCompletion: null,
   completionRevealTimer: null,
   completionTimer: null,
+  matchIntroTimer: null,
+  endSequenceTimer: null,
   cpuTimer: null,
 };
 
@@ -88,6 +110,8 @@ const elements = {
   setupScreen: document.querySelector("#setupScreen"),
   gameScreen: document.querySelector("#gameScreen"),
   themeButton: document.querySelector("#themeButton"),
+  themeIcon: document.querySelector("#themeIcon"),
+  themeLabel: document.querySelector("#themeLabel"),
   startButton: document.querySelector("#startButton"),
   restartButton: document.querySelector("#restartButton"),
   rulesButton: document.querySelector("#rulesButton"),
@@ -95,22 +119,23 @@ const elements = {
   closeRulesButton: document.querySelector("#closeRulesButton"),
   cpuCountButtons: [...document.querySelectorAll("[data-cpu-count]")],
   cpuDifficultyButtons: [...document.querySelectorAll("[data-cpu-difficulty]")],
+  turnLine: document.querySelector(".turn-line"),
   turnName: document.querySelector("#turnName"),
-  statusMessage: document.querySelector("#statusMessage"),
-  stockPile: document.querySelector("#stockPile"),
-  deckCount: document.querySelector("#deckCount"),
+  turnInstruction: document.querySelector("#turnInstruction"),
   opponents: document.querySelector("#opponents"),
   patternCandidates: document.querySelector("#patternCandidates"),
   sentencePreview: document.querySelector("#sentencePreview"),
   sentenceBoard: document.querySelector("#sentenceBoard"),
   tableArea: document.querySelector(".table-area"),
   completionBurst: document.querySelector("#completionBurst"),
+  misplayBurst: document.querySelector("#misplayBurst"),
   playerArea: document.querySelector(".player-area"),
   hand: document.querySelector("#hand"),
   handCount: document.querySelector("#handCount"),
   drawButton: document.querySelector("#drawButton"),
-  hintButton: document.querySelector("#hintButton"),
   toastRegion: document.querySelector("#toastRegion"),
+  matchIntro: document.querySelector("#matchIntro"),
+  endCurtain: document.querySelector("#endCurtain"),
   completionModal: document.querySelector("#completionModal"),
   completionPatterns: document.querySelector("#completionPatterns"),
   completionEnglish: document.querySelector("#completionEnglish"),
@@ -118,6 +143,11 @@ const elements = {
   completionNote: document.querySelector("#completionNote"),
   continueButton: document.querySelector("#continueButton"),
   resultModal: document.querySelector("#resultModal"),
+  resultScorePanel: document.querySelector(".result-score"),
+  resultRank: document.querySelector("#resultRank"),
+  resultScore: document.querySelector("#resultScore"),
+  resultScoreMeta: document.querySelector("#resultScoreMeta"),
+  resultScoreBreakdown: document.querySelector("#resultScoreBreakdown"),
   rankingList: document.querySelector("#rankingList"),
   resultSentenceCount: document.querySelector("#resultSentenceCount"),
   resultSentenceList: document.querySelector("#resultSentenceList"),
@@ -172,8 +202,8 @@ function buildDeck() {
     noun({ label: "the book", gloss: "その本", entity: "book", reflexive: "itself", copies: 2 }),
     noun({ label: "the room", gloss: "その部屋", entity: "room", reflexive: "itself", copies: 2 }),
     noun({ label: "the door", gloss: "そのドア", entity: "door", reflexive: "itself", copies: 2 }),
-    noun({ label: "the computer", gloss: "そのコンピューター", entity: "computer", reflexive: "itself", copies: 2 }),
-    noun({ label: "the ticket", gloss: "その切符", entity: "ticket", reflexive: "itself", copies: 2 }),
+    noun({ label: "the computer", gloss: "そのコンピューター", entity: "computer", reflexive: "itself" }),
+    noun({ label: "the ticket", gloss: "その切符", entity: "ticket", reflexive: "itself" }),
     noun({ label: "the photograph", gloss: "その写真", entity: "photograph", reflexive: "itself", copies: 2 }),
     noun({ label: "the cake", gloss: "そのケーキ", entity: "cake", reflexive: "itself", copies: 2 }),
     noun({ label: "the dog", gloss: "その犬", entity: "dog", reflexive: "itself", copies: 2 }),
@@ -237,6 +267,9 @@ function buildDeck() {
     noun({ label: "a doctor", gloss: "医師", entity: "doctor-role", reflexive: "themself" }),
     noun({ label: "a photographer", gloss: "写真家", entity: "photographer-role", reflexive: "themself" }),
     noun({ label: "a friend", gloss: "友人", entity: "friend-role", reflexive: "themself" }),
+    noun({ label: "the teacher", gloss: "その先生", entity: "teacher", reflexive: "themself" }),
+    noun({ label: "the classroom", gloss: "その教室", entity: "classroom", reflexive: "itself" }),
+    noun({ label: "the window", gloss: "その窓", entity: "window", reflexive: "itself" }),
   ];
 
   const adjectiveDefinitions = [
@@ -258,17 +291,18 @@ function buildDeck() {
     adjective("popular", "人気のある", "人気がある", "人気が出るように", "人気のある"),
     adjective("warm", "暖かい", "暖かい", "暖かく", "暖かい"),
     adjective("cold", "冷たい・寒い", "冷たい", "冷たく", "冷たい"),
+    adjective("young", "若い", "若い", "若く", "若い"),
+    adjective("strong", "強い", "強い", "強く", "強い"),
   ];
 
   const verbDefinitions = [
-    // 各文型を主役にしたカードを6枚ずつ収録。複数文型を取る動詞は併記する。
+    // 各文型を主役にしたカードを5〜6枚ずつ収録。複数文型を取る動詞は併記する。
     verb("run", "runs", "走る／Oを経営する／Cになる", ["SV", "SVC", "SVO"], {
       SVC: ["adjective"],
     }),
     verb("sleep", "sleeps", "眠る", ["SV"]),
     verb("arrive", "arrives", "到着する", ["SV"]),
     verb("laugh", "laughs", "笑う", ["SV"]),
-    verb("cry", "cries", "泣く", ["SV"]),
     verb("swim", "swims", "泳ぐ", ["SV"]),
 
     verb("be", "is", "〜である・いる", ["SVC"], { SVC: ["adjective", "noun"] }),
@@ -289,7 +323,6 @@ function buildDeck() {
     verb("show", "shows", "OにO₂を見せる", ["SVO", "SVOO"], {}, "SVOO"),
     verb("teach", "teaches", "OにO₂を教える", ["SVO", "SVOO"], {}, "SVOO"),
     verb("tell", "tells", "OにO₂を伝える", ["SVO", "SVOO"], {}, "SVOO"),
-    verb("send", "sends", "OにO₂を送る", ["SVO", "SVOO"], {}, "SVOO"),
     verb("buy", "buys", "OにO₂を買う", ["SVO", "SVOO"], {}, "SVOO"),
 
     verb("keep", "keeps", "保つ／OをCのままにする", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
@@ -297,7 +330,6 @@ function buildDeck() {
     verb("call", "calls", "呼ぶ／OをCと呼ぶ", ["SVO", "SVOC"], { SVOC: ["noun"] }, "SVOC"),
     verb("name", "names", "名づける／OをCと名づける", ["SVO", "SVOC"], { SVOC: ["noun"] }, "SVOC"),
     verb("find", "finds", "見つける／OがCだと分かる", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
-    verb("leave", "leaves", "残す／OをCのままにする", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
   ];
 
   const cards = [];
@@ -330,7 +362,8 @@ function sortHand(hand) {
 function applyTheme(theme, persist = false) {
   const resolved = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = resolved;
-  elements.themeButton.textContent = resolved === "dark" ? "ライト" : "ダーク";
+  elements.themeIcon.src = resolved === "dark" ? "assets/icons/sun.svg" : "assets/icons/moon.svg";
+  elements.themeLabel.textContent = resolved === "dark" ? "ライト" : "ダーク";
   elements.themeButton.setAttribute("aria-pressed", String(resolved === "dark"));
   elements.themeButton.setAttribute(
     "aria-label",
@@ -357,6 +390,12 @@ function startGame() {
   clearTimeout(state.cpuTimer);
   clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
+  hideMatchIntro();
+  clearTimeout(state.endSequenceTimer);
+  state.endSequenceTimer = null;
+  elements.endCurtain.classList.add("is-hidden");
+  elements.endCurtain.classList.remove("is-active");
+  elements.endCurtain.setAttribute("aria-hidden", "true");
   closeModal(elements.resultModal);
   closeModal(elements.completionModal);
 
@@ -370,11 +409,18 @@ function startGame() {
   state.sentenceNotes = [];
   state.gameStarted = true;
   state.gameOver = false;
-  state.busy = false;
+  state.busy = true;
   state.hasDrawn = false;
+  state.drawnCardId = null;
   state.consecutivePasses = 0;
+  state.humanDecisionMs = 0;
+  state.humanTurnStartedAt = null;
+  state.humanPenalties = 0;
   state.pendingCompletion = null;
   elements.tableArea.classList.remove("is-complete-flash");
+  elements.tableArea.classList.remove("is-misplay-flash");
+  elements.misplayBurst.setAttribute("aria-hidden", "true");
+  document.body.classList.add("is-game-active");
 
   const cpuNames = ["CPU アオ", "CPU アカ", "CPU ミドリ", "CPU ムラサキ"];
   state.players = [
@@ -401,21 +447,30 @@ function startGame() {
   elements.gameScreen.classList.remove("is-hidden");
   elements.restartButton.classList.remove("is-hidden");
   render();
-  showToast(`${currentPlayer().name}からスタートです！`, "info");
-  scheduleCpuTurn();
+  showMatchIntro();
 }
 
 function returnToSetup() {
   clearTimeout(state.cpuTimer);
   clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
+  hideMatchIntro();
+  clearTimeout(state.endSequenceTimer);
+  state.endSequenceTimer = null;
   state.gameStarted = false;
   state.gameOver = false;
   state.busy = false;
   state.consecutivePasses = 0;
   state.pendingCompletion = null;
   state.selectedCardId = null;
+  state.drawnCardId = null;
+  state.humanTurnStartedAt = null;
   elements.tableArea.classList.remove("is-complete-flash");
+  elements.tableArea.classList.remove("is-misplay-flash");
+  elements.misplayBurst.setAttribute("aria-hidden", "true");
+  elements.endCurtain.classList.add("is-hidden");
+  elements.endCurtain.classList.remove("is-active");
+  elements.endCurtain.setAttribute("aria-hidden", "true");
   closeModal(elements.rulesModal);
   closeModal(elements.completionModal);
   closeModal(elements.resultModal);
@@ -423,6 +478,31 @@ function returnToSetup() {
   elements.setupScreen.classList.remove("is-hidden");
   elements.restartButton.classList.add("is-hidden");
   elements.toastRegion.replaceChildren();
+  document.body.classList.remove("is-game-active");
+}
+
+function hideMatchIntro() {
+  clearTimeout(state.matchIntroTimer);
+  state.matchIntroTimer = null;
+  elements.matchIntro.classList.remove("is-active");
+  elements.matchIntro.classList.add("is-hidden");
+  elements.matchIntro.setAttribute("aria-hidden", "true");
+}
+
+function showMatchIntro() {
+  elements.matchIntro.classList.remove("is-hidden");
+  elements.matchIntro.setAttribute("aria-hidden", "false");
+  void elements.matchIntro.offsetWidth;
+  elements.matchIntro.classList.add("is-active");
+  const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 120 : MATCH_INTRO_MS;
+  state.matchIntroTimer = window.setTimeout(() => {
+    hideMatchIntro();
+    if (!state.gameStarted || state.gameOver) return;
+    state.busy = false;
+    startHumanTurnClock();
+    render();
+    scheduleCpuTurn();
+  }, duration);
 }
 
 function currentPlayer() {
@@ -437,11 +517,56 @@ function allActivePlayersPassed(passCount, activeCount) {
   return activeCount > 0 && passCount >= activeCount;
 }
 
+function startHumanTurnClock() {
+  const player = currentPlayer();
+  if (
+    state.humanTurnStartedAt === null &&
+    player?.isHuman &&
+    player.rank === null &&
+    !state.busy &&
+    !state.gameOver &&
+    !state.pendingCompletion
+  ) {
+    state.humanTurnStartedAt = performance.now();
+  }
+}
+
+function stopHumanTurnClock() {
+  if (state.humanTurnStartedAt === null) return;
+  state.humanDecisionMs += Math.max(0, performance.now() - state.humanTurnStartedAt);
+  state.humanTurnStartedAt = null;
+}
+
+function calculateScore({ rank, playerCount, difficulty, decisionMs, penalties }) {
+  const safeRank = Math.min(Math.max(Number(rank) || playerCount, 1), SCORE_RANK_POINTS.length - 1);
+  const rankPoints = SCORE_RANK_POINTS[safeRank];
+  const seconds = Math.max(0, decisionMs) / 1000;
+  const speedPoints = Math.round((SCORE_SPEED_MAX * Math.exp(-seconds / SCORE_SPEED_DECAY_SECONDS)) / 10) * 10;
+  const difficultyPoints = difficulty === "hard" ? SCORE_HARD_BONUS : 0;
+  const opponentPoints = Math.max(0, playerCount - 2) * SCORE_EXTRA_CPU_BONUS;
+  const penaltyPoints = Math.max(0, penalties) * SCORE_MISTAKE_PENALTY;
+  const total = Math.max(
+    0,
+    Math.round((rankPoints + speedPoints + difficultyPoints + opponentPoints - penaltyPoints) / 10) * 10,
+  );
+  return { total, rankPoints, speedPoints, difficultyPoints, opponentPoints, penaltyPoints };
+}
+
+function scoreTitleFor(score) {
+  return SCORE_TITLES.find((title) => score >= title.minimum) ?? SCORE_TITLES[SCORE_TITLES.length - 1];
+}
+
+function formatDecisionTime(milliseconds) {
+  const tenths = Math.round(Math.max(0, milliseconds) / 100);
+  const minutes = Math.floor(tenths / 600);
+  const seconds = ((tenths % 600) / 10).toFixed(1);
+  return minutes ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+}
+
 function drawCardFromStock() {
   if (state.deck.length === 0 && state.discard.length > 0) {
     state.deck = shuffle(state.discard);
     state.discard = [];
-    showToast("使い終わったカードを切り直しました。", "info");
   }
   return state.deck.pop() ?? null;
 }
@@ -494,11 +619,6 @@ function slotRole(slot, pattern = null, field = state.field) {
 }
 
 function dynamicSlotMeta(slot) {
-  if (slot === "S" || slot === "V") return BASE_SLOT_META[slot];
-  const role = slotRole(slot);
-  if (role === "O1") return { code: "O", name: "目的語" };
-  if (role === "O2") return { code: "O₂", name: "目的語2" };
-  if (role === "C") return { code: "C", name: "補語" };
   return BASE_SLOT_META[slot];
 }
 
@@ -735,6 +855,7 @@ function executeAction(playerIndex, action) {
   );
   if (!legalAction) return;
 
+  if (player.isHuman) stopHumanTurnClock();
   clearTimeout(state.cpuTimer);
   const before = getSurfaceMap();
   const cardIndex = player.hand.findIndex((card) => card.id === action.cardId);
@@ -743,12 +864,12 @@ function executeAction(playerIndex, action) {
   state.selectedCardId = null;
   state.draggedCardId = null;
   state.hasDrawn = false;
+  state.drawnCardId = null;
   state.consecutivePasses = 0;
   state.busy = true;
 
   const notes = collectSurfaceChanges(before, action.slot, card);
   state.sentenceNotes.push(...notes.filter((note) => !state.sentenceNotes.includes(note)));
-  notes.slice(0, 2).forEach((note, index) => window.setTimeout(() => showToast(note), index * 240));
 
   const completedPatterns = getCompletedPatterns();
   if (player.hand.length === 0) registerFinish(player);
@@ -833,7 +954,6 @@ function registerFinish(player) {
   if (player.rank !== null) return;
   player.rank = state.rankings.length + 1;
   state.rankings.push(player.id);
-  showToast(`${player.name}が${player.rank}位で上がりました！`, "info");
   const remaining = activePlayers();
   if (remaining.length === 1) {
     remaining[0].rank = state.players.length;
@@ -864,7 +984,9 @@ function advanceTurn() {
   state.currentPlayerIndex = nextActiveIndex(state.currentPlayerIndex);
   state.selectedCardId = null;
   state.hasDrawn = false;
+  state.drawnCardId = null;
   state.busy = false;
+  startHumanTurnClock();
   render();
   scheduleCpuTurn();
 }
@@ -872,47 +994,76 @@ function advanceTurn() {
 async function handleHumanDraw() {
   const player = currentPlayer();
   if (!player?.isHuman || state.busy || state.hasDrawn || state.gameOver) return;
-  if (getLegalActionsForPlayer(player).length) {
-    showToast("出せるカードがあります。先にカードを置いてください。", "info");
-    return;
-  }
+  stopHumanTurnClock();
   state.busy = true;
   state.hasDrawn = true;
+  state.selectedCardId = null;
+  state.drawnCardId = null;
   render();
 
   const card = drawCardFromStock();
   if (card) {
-    render();
-    await animateHumanDraw(310);
+    await animateHumanDraw(460);
     player.hand.push(card);
+    state.drawnCardId = card.id;
     sortHand(player.hand);
+    showDrawToast(card);
     render();
   }
 
   if (card && getLegalActionsForCard(card).length) {
     state.busy = false;
-    state.selectedCardId = card.id;
-    showToast(`「${card.label}」を引きました。出せます！`, "info");
+    startHumanTurnClock();
     render();
     return;
   }
 
-  showToast(card ? `「${card.label}」は出せないため、パスします。` : "山札が空のため、パスします。", "info");
-  window.setTimeout(finishPass, 600);
+  window.setTimeout(finishPass, 520);
+}
+
+async function applyMisplayPenalty() {
+  const player = currentPlayer();
+  if (!player?.isHuman || state.busy || state.gameOver) return;
+  stopHumanTurnClock();
+  state.busy = true;
+  state.selectedCardId = null;
+  state.draggedCardId = null;
+  state.humanPenalties += 1;
+  render();
+
+  elements.misplayBurst.setAttribute("aria-hidden", "false");
+  elements.tableArea.classList.remove("is-misplay-flash");
+  void elements.tableArea.offsetWidth;
+  elements.tableArea.classList.add("is-misplay-flash");
+  const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 80 : MISPLAY_CUT_IN_MS;
+  await new Promise((resolve) => window.setTimeout(resolve, duration));
+  elements.tableArea.classList.remove("is-misplay-flash");
+  elements.misplayBurst.setAttribute("aria-hidden", "true");
+  if (!state.gameStarted || state.gameOver || currentPlayer() !== player || !state.busy) return;
+
+  const card = drawCardFromStock();
+  if (card) {
+    await animateHumanDraw(460);
+    player.hand.push(card);
+    sortHand(player.hand);
+    showDrawToast(card);
+    render();
+  }
+
+  window.setTimeout(finishPass, 520);
 }
 
 function finishPass() {
-  const passerName = currentPlayer()?.name ?? "プレイヤー";
+  if (currentPlayer()?.isHuman) stopHumanTurnClock();
   state.consecutivePasses += 1;
   const neededPasses = activePlayers().length;
   const shouldFlush = allActivePlayersPassed(state.consecutivePasses, neededPasses);
 
   if (shouldFlush) {
     discardField();
-    showToast("全員が出せなかったため、場を流しました！", "info");
-  } else {
-    showToast(`${passerName}がパスしました（${state.consecutivePasses}/${neededPasses}人）。`, "info");
+    showToast(FIELD_FLUSH_MESSAGE, "is-flow", 3000);
   }
+  state.drawnCardId = null;
   state.busy = false;
   advanceTurn();
 }
@@ -922,7 +1073,7 @@ function scheduleCpuTurn() {
   if (!state.gameStarted || state.gameOver || state.busy) return;
   const player = currentPlayer();
   if (!player || player.isHuman || player.rank !== null) return;
-  state.cpuTimer = window.setTimeout(runCpuTurn, CPU_THINK_DELAY_MS);
+  state.cpuTimer = window.setTimeout(runCpuTurn, CPU_THINK_DELAY_MS[state.cpuDifficulty]);
 }
 
 function actionWouldComplete(action, player) {
@@ -988,17 +1139,16 @@ async function runCpuTurn() {
   }
 
   if (!drawnCard || getLegalActionsForCard(drawnCard).length === 0) {
-    return window.setTimeout(finishPass, CPU_AFTER_DRAW_DELAY_MS);
+    return window.setTimeout(finishPass, CPU_AFTER_DRAW_DELAY_MS[state.cpuDifficulty]);
   }
 
-  showToast(`${player.name}が1枚引き、出せるカードを見つけました。`, "info");
   actions = getLegalActionsForCard(drawnCard);
   if (actions.length) {
     const action = chooseCpuAction(actions, player);
     window.setTimeout(async () => {
       await animateCpuPlay(player, action.slot);
       executeAction(state.currentPlayerIndex, action);
-    }, CPU_AFTER_DRAW_DELAY_MS);
+    }, CPU_AFTER_DRAW_DELAY_MS[state.cpuDifficulty]);
     return;
   }
 }
@@ -1015,11 +1165,18 @@ function animateFlyingBack(source, target, options = {}) {
 
   const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
   const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
+  const startRotation = options.rotate === false ? 0 : -8;
+  const middleRotation = options.rotate === false ? 0 : 7;
+  const endRotation = options.rotate === false ? 0 : options.rotation ?? 0;
   const animation = clone.animate(
     [
-      { transform: "translate(0, 0) rotate(-8deg) scale(1)", opacity: 0.95 },
-      { transform: `translate(${dx * 0.48}px, ${dy * 0.35 - 42}px) rotate(7deg) scale(1.12)`, opacity: 1, offset: 0.55 },
-      { transform: `translate(${dx}px, ${dy}px) rotate(${options.rotation ?? 0}deg) scale(0.92)`, opacity: 1 },
+      { transform: `translate(0, 0) rotate(${startRotation}deg) scale(1)`, opacity: 0.95 },
+      {
+        transform: `translate(${dx * 0.48}px, ${dy * 0.35 - 42}px) rotate(${middleRotation}deg) scale(1.08)`,
+        opacity: 1,
+        offset: 0.55,
+      },
+      { transform: `translate(${dx}px, ${dy}px) rotate(${endRotation}deg) scale(0.92)`, opacity: 1 },
     ],
     { duration: options.duration ?? 560, easing: "cubic-bezier(.22,.78,.27,1)" },
   );
@@ -1029,28 +1186,60 @@ function animateFlyingBack(source, target, options = {}) {
 function animateCpuPlay(player, slot) {
   const source = document.querySelector(`[data-player-id="${player.id}"] .cpu-card-back`);
   const target = document.querySelector(`[data-slot="${slot}"]`);
-  return animateFlyingBack(source, target, { rotation: 180, duration: CPU_CARD_TRAVEL_MS });
+  return animateFlyingBack(source, target, { rotate: false, duration: CPU_CARD_TRAVEL_MS });
 }
 
 function animateCpuDraw(player, duration = 500) {
-  const source = document.querySelector(".stock-pile .stock-card-back-1");
   const target = document.querySelector(`[data-player-id="${player.id}"] .cpu-hand-visual`);
-  return animateFlyingBack(source, target, { rotation: -5, duration });
+  return animateDrawFromRight(target, duration);
 }
 
 function animateHumanDraw(duration = 500) {
-  const source = document.querySelector(".stock-pile .stock-card-back-1");
   const target = document.querySelector(".player-area .hand");
-  return animateFlyingBack(source, target, { rotation: 5, duration });
+  return animateDrawFromRight(target, duration);
+}
+
+function animateDrawFromRight(target, duration = 500) {
+  if (!target || !target.animate) return Promise.resolve();
+  const targetRect = target.getBoundingClientRect();
+  const clone = document.createElement("span");
+  clone.className = "flying-card";
+  clone.style.left = `${window.innerWidth + 34}px`;
+  clone.style.top = `${window.innerHeight / 2 - 21}px`;
+  document.body.appendChild(clone);
+
+  const dx = targetRect.left + targetRect.width / 2 - (window.innerWidth + 48);
+  const dy = targetRect.top + targetRect.height / 2 - window.innerHeight / 2;
+  const animation = clone.animate(
+    [
+      { transform: "translate(0, 0) scale(0.9)", opacity: 0 },
+      { transform: `translate(${dx * 0.35}px, ${dy * 0.18}px) scale(1)`, opacity: 1, offset: 0.28 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.94)`, opacity: 1 },
+    ],
+    { duration, easing: "cubic-bezier(.22,.78,.27,1)" },
+  );
+  return animation.finished.catch(() => undefined).finally(() => clone.remove());
 }
 
 function finishGame() {
+  if (state.endSequenceTimer || !elements.resultModal.classList.contains("is-hidden")) return;
   clearTimeout(state.cpuTimer);
+  stopHumanTurnClock();
   state.busy = false;
   state.gameOver = true;
   render();
   renderResult();
-  openModal(elements.resultModal);
+  elements.endCurtain.classList.remove("is-hidden");
+  elements.endCurtain.setAttribute("aria-hidden", "false");
+  void elements.endCurtain.offsetWidth;
+  elements.endCurtain.classList.add("is-active");
+  state.endSequenceTimer = window.setTimeout(() => {
+    elements.endCurtain.classList.remove("is-active");
+    elements.endCurtain.classList.add("is-hidden");
+    elements.endCurtain.setAttribute("aria-hidden", "true");
+    state.endSequenceTimer = null;
+    openModal(elements.resultModal);
+  }, END_CURTAIN_DURATION_MS);
 }
 
 function render() {
@@ -1065,29 +1254,15 @@ function render() {
 
 function renderStatus() {
   const player = currentPlayer();
+  const isHumanTurn = Boolean(player?.isHuman && player.rank === null && !state.gameOver);
+  const isCpuTurn = Boolean(player && !player.isHuman && player.rank === null && !state.gameOver);
   elements.turnName.textContent = player?.name ?? "—";
-  elements.deckCount.textContent = String(state.deck.length);
-  elements.playerArea.classList.toggle(
-    "is-current",
-    Boolean(player?.isHuman && player.rank === null && !state.gameOver),
-  );
-  elements.stockPile.classList.toggle("is-empty", state.deck.length + state.discard.length === 0);
-  elements.stockPile.setAttribute("aria-label", `山札 ${state.deck.length}枚`);
-  if (state.gameOver) {
-    elements.statusMessage.textContent = "対戦終了です。今回の英文をリザルトで確認できます。";
-  } else if (state.pendingCompletion) {
-    elements.statusMessage.textContent = "英文完成！　訳を確認してください。";
-  } else if (state.busy && !player?.isHuman) {
-    elements.statusMessage.textContent = `${player.name}が考えています…`;
-  } else if (player?.isHuman) {
-    elements.statusMessage.textContent = getLegalActionsForPlayer(player).length
-      ? "カードを置いてください。"
-      : "出せません。「山札からとる」を押してください。";
-  } else if (state.players[0].rank !== null) {
-    elements.statusMessage.textContent = `あなたは${state.players[0].rank}位で上がり。CPUの対戦を続けています。`;
-  } else {
-    elements.statusMessage.textContent = `${player?.name ?? "CPU"}の番です。`;
-  }
+  elements.turnInstruction.textContent = isHumanTurn
+    ? "の手番です。カードを一枚、場に置いてください。"
+    : "の手番です。相手の一手をお待ちください。";
+  elements.turnLine.classList.toggle("is-human-turn", isHumanTurn);
+  elements.turnLine.classList.toggle("is-cpu-turn", isCpuTurn);
+  elements.playerArea.classList.toggle("is-current", isHumanTurn);
 }
 
 function cpuHandHtml(count) {
@@ -1109,7 +1284,7 @@ function renderOpponents() {
         : `手札 ${player.hand.length}枚・${difficultyLabel}`;
       return `
         <article class="opponent ${isCurrent ? "is-current" : ""} ${player.rank ? "is-finished" : ""}" data-player-id="${player.id}">
-          <div class="opponent-avatar" aria-hidden="true">${index + 1}</div>
+          <div class="opponent-avatar" aria-hidden="true">相手${state.players.length > 2 ? index + 1 : ""}</div>
           <div class="opponent-copy"><strong>${escapeHtml(player.name)}</strong><span>${stateText}</span></div>
           ${cpuHandHtml(player.hand.length)}
         </article>
@@ -1147,21 +1322,17 @@ function renderSentencePreview() {
 }
 
 function renderBoard() {
-  const candidates = getCandidatePatterns();
   const human = state.players[0];
   const selectedCard = human?.hand.find((card) => card.id === state.selectedCardId) ?? null;
-  const selectedActions = selectedCard ? getLegalActionsForCard(selectedCard) : [];
+  const canAttempt = Boolean(
+    selectedCard && currentPlayer()?.isHuman && !state.busy && !state.gameOver && human.rank === null,
+  );
   elements.sentenceBoard.innerHTML = Object.keys(BASE_SLOT_META)
     .map((slot) => {
       const placement = state.field[slot];
       const meta = dynamicSlotMeta(slot);
-      const active = placement || candidates.some((pattern) => PATTERNS[pattern].slots.includes(slot));
-      const legal = selectedActions.some((action) => action.slot === slot);
-      const className = ["sentence-slot", active ? "" : "is-inactive", legal ? "is-legal" : ""]
-        .filter(Boolean)
-        .join(" ");
       return `
-        <button type="button" class="${className}" data-slot="${slot}" aria-disabled="${!legal}" aria-label="${meta.name}${legal ? "にカードを置く" : ""}">
+        <button type="button" class="sentence-slot" data-slot="${slot}" aria-disabled="${!canAttempt}" aria-label="${meta.name}${canAttempt ? "にカードを置く" : ""}">
           <span class="slot-heading"><span class="slot-code">${meta.code}</span><span class="slot-name">${meta.name}</span></span>
           ${placement ? fieldCardHtml(slot, placement.card) : `<span class="slot-watermark">${meta.code}</span>`}
         </button>
@@ -1172,7 +1343,7 @@ function renderBoard() {
   elements.sentenceBoard.querySelectorAll("[data-slot]").forEach((slotButton) => {
     const slot = slotButton.dataset.slot;
     slotButton.addEventListener("click", () => handleSlotClick(slot));
-    slotButton.addEventListener("dragover", (event) => handleDragOver(event, slotButton, slot));
+    slotButton.addEventListener("dragover", (event) => handleDragOver(event, slotButton));
     slotButton.addEventListener("dragleave", () => slotButton.classList.remove("is-drag-over"));
     slotButton.addEventListener("drop", (event) => handleDrop(event, slot));
   });
@@ -1207,17 +1378,11 @@ function cardFooterHtml(card) {
 function renderHand() {
   const player = state.players[0];
   const isHumanTurn = currentPlayer()?.isHuman && !state.busy && !state.gameOver && player.rank === null;
-  const allActions = isHumanTurn ? getLegalActionsForPlayer(player) : [];
-  const playableIds = new Set(allActions.map((action) => action.cardId));
 
   elements.handCount.textContent = String(player.hand.length);
   elements.drawButton.disabled =
-    !isHumanTurn || state.hasDrawn || allActions.length > 0 || state.deck.length + state.discard.length === 0;
-  elements.drawButton.setAttribute(
-    "aria-label",
-    elements.drawButton.disabled ? `山札 ${state.deck.length}枚` : `山札 ${state.deck.length}枚、1枚引く`,
-  );
-  elements.hintButton.disabled = !isHumanTurn;
+    !isHumanTurn || state.hasDrawn || state.deck.length + state.discard.length === 0;
+  elements.drawButton.setAttribute("aria-label", "山札から1枚引く");
 
   if (player.hand.length === 0) {
     elements.hand.innerHTML = `<div class="hand-empty">${player.rank ? `${player.rank}位で上がりました！` : "手札がありません"}</div>`;
@@ -1226,12 +1391,11 @@ function renderHand() {
 
   elements.hand.innerHTML = player.hand
     .map((card) => {
-      const playable = playableIds.has(card.id);
       const selected = state.selectedCardId === card.id;
       return `
-        <button type="button" class="hand-card ${card.type} ${selected ? "is-selected" : ""} ${isHumanTurn && !playable ? "is-unplayable" : ""}"
-          data-card-id="${card.id}" ${isHumanTurn ? "" : "disabled"} draggable="${isHumanTurn && playable}"
-          aria-pressed="${selected}" aria-label="${escapeHtml(card.label)}、${TYPE_META[card.type].name}${playable ? "、今出せます" : ""}">
+        <button type="button" class="hand-card ${card.type} ${selected ? "is-selected" : ""}"
+          data-card-id="${card.id}" ${isHumanTurn ? "" : "disabled"} draggable="${isHumanTurn}"
+          aria-pressed="${selected}" aria-label="${escapeHtml(card.label)}、${TYPE_META[card.type].name}">
           <span class="card-type">${cardTypeHeading(card)}</span>
           <span class="card-word">${escapeHtml(card.label)}</span>
           <span class="card-gloss">${escapeHtml(card.gloss)}</span>
@@ -1256,24 +1420,33 @@ function handleCardClick(cardId) {
   if (!currentPlayer()?.isHuman || state.busy || state.gameOver) return;
   const card = state.players[0].hand.find((candidate) => candidate.id === cardId);
   if (!card) return;
-  if (!getLegalActionsForCard(card).length) {
-    showToast(`「${card.label}」は今の場には置けません。`, "info");
-    return;
-  }
   state.selectedCardId = state.selectedCardId === cardId ? null : cardId;
   render();
+}
+
+function attemptHumanPlacement(cardId, slot) {
+  if (!currentPlayer()?.isHuman || state.busy || state.gameOver) return;
+  const card = state.players[0].hand.find((candidate) => candidate.id === cardId);
+  if (!card) return;
+  const mustUseDrawnCard = state.hasDrawn && state.drawnCardId && card.id !== state.drawnCardId;
+  const action = mustUseDrawnCard
+    ? null
+    : getLegalActionsForCard(card).find((candidate) => candidate.slot === slot);
+  if (action) {
+    executeAction(0, action);
+    return;
+  }
+  void applyMisplayPenalty();
 }
 
 function handleSlotClick(slot) {
   const cardId = state.selectedCardId;
   if (!cardId || !currentPlayer()?.isHuman || state.busy) return;
-  const card = state.players[0].hand.find((candidate) => candidate.id === cardId);
-  const action = card && getLegalActionsForCard(card).find((candidate) => candidate.slot === slot);
-  if (action) executeAction(0, action);
+  attemptHumanPlacement(cardId, slot);
 }
 
 function handleDragStart(event, button, card) {
-  if (!card || !getLegalActionsForCard(card).length || state.busy) {
+  if (!card || !currentPlayer()?.isHuman || state.busy || state.gameOver) {
     event.preventDefault();
     return;
   }
@@ -1281,27 +1454,17 @@ function handleDragStart(event, button, card) {
   event.dataTransfer.effectAllowed = "move";
   event.dataTransfer.setData("text/plain", card.id);
   button.classList.add("is-dragging");
-  markDragTargets(card);
 }
 
 function clearDragState(button = null) {
   state.draggedCardId = null;
   button?.classList.remove("is-dragging");
-  document.querySelectorAll(".sentence-slot").forEach((slot) =>
-    slot.classList.remove("is-drag-over", "is-legal"),
-  );
+  document.querySelectorAll(".sentence-slot").forEach((slot) => slot.classList.remove("is-drag-over"));
 }
 
-function markDragTargets(card) {
-  const slots = new Set(getLegalActionsForCard(card).map((action) => action.slot));
-  document.querySelectorAll(".sentence-slot").forEach((element) => {
-    element.classList.toggle("is-legal", slots.has(element.dataset.slot));
-  });
-}
-
-function handleDragOver(event, element, slot) {
+function handleDragOver(event, element) {
   const card = state.players[0]?.hand.find((candidate) => candidate.id === state.draggedCardId);
-  if (!card || !getLegalActionsForCard(card).some((action) => action.slot === slot)) return;
+  if (!card || !currentPlayer()?.isHuman || state.busy || state.gameOver) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
   element.classList.add("is-drag-over");
@@ -1310,10 +1473,8 @@ function handleDragOver(event, element, slot) {
 function handleDrop(event, slot) {
   event.preventDefault();
   const cardId = state.draggedCardId || event.dataTransfer.getData("text/plain");
-  const card = state.players[0]?.hand.find((candidate) => candidate.id === cardId);
-  const action = card && getLegalActionsForCard(card).find((candidate) => candidate.slot === slot);
   clearDragState(document.querySelector(`[data-card-id="${cardId}"]`));
-  if (action) executeAction(0, action);
+  attemptHumanPlacement(cardId, slot);
 }
 
 function installTouchDrag(button, card) {
@@ -1328,9 +1489,7 @@ function installTouchDrag(button, card) {
     ghost?.remove();
     ghost = null;
     button.classList.remove("is-dragging");
-    document.querySelectorAll(".sentence-slot").forEach((slot) =>
-      slot.classList.remove("is-drag-over", "is-legal"),
-    );
+    document.querySelectorAll(".sentence-slot").forEach((slot) => slot.classList.remove("is-drag-over"));
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
     window.removeEventListener("pointercancel", cancel);
@@ -1351,26 +1510,23 @@ function installTouchDrag(button, card) {
       ghost.classList.add("touch-drag-ghost");
       ghost.removeAttribute("data-card-id");
       document.body.appendChild(ghost);
-      markDragTargets(card);
     }
     event.preventDefault();
     ghost.style.left = `${event.clientX}px`;
     ghost.style.top = `${event.clientY}px`;
     const underPointer = document.elementFromPoint(event.clientX, event.clientY);
     const candidate = underPointer?.closest?.(".sentence-slot");
-    const legal = candidate && getLegalActionsForCard(card).some((action) => action.slot === candidate.dataset.slot);
     if (targetSlot !== candidate) targetSlot?.classList.remove("is-drag-over");
-    targetSlot = legal ? candidate : null;
+    targetSlot = candidate;
     targetSlot?.classList.add("is-drag-over");
   };
 
   const end = (event) => {
     if (event.pointerType === "mouse") return cleanup();
     const slot = targetSlot?.dataset.slot;
-    const action = slot && getLegalActionsForCard(card).find((candidate) => candidate.slot === slot);
     cleanup();
     state.draggedCardId = null;
-    if (action) executeAction(0, action);
+    if (slot) attemptHumanPlacement(card.id, slot);
   };
 
   const cancel = () => {
@@ -1388,21 +1544,30 @@ function installTouchDrag(button, card) {
   });
 }
 
-function showHint() {
-  if (!currentPlayer()?.isHuman || state.busy || state.gameOver) return;
-  const actions = getLegalActionsForPlayer(state.players[0]);
-  if (!actions.length) {
-    showToast("今は合法手がありません。山札から1枚引きましょう。", "info");
-    return;
-  }
-  const preferred = actions.find((action) => actionWouldComplete(action, state.players[0])) ?? actions[0];
-  const card = state.players[0].hand.find((candidate) => candidate.id === preferred.cardId);
-  state.selectedCardId = card.id;
-  render();
-  showToast(`「${card.label}」を${dynamicSlotMeta(preferred.slot).code}へ置けます。`, "info");
-}
-
 function renderResult() {
+  const human = state.players[0];
+  const score = calculateScore({
+    rank: human.rank,
+    playerCount: state.players.length,
+    difficulty: state.cpuDifficulty,
+    decisionMs: state.humanDecisionMs,
+    penalties: state.humanPenalties,
+  });
+  const scoreTitle = scoreTitleFor(score.total);
+  const difficultyLabel = state.cpuDifficulty === "hard" ? "ハード" : "ノーマル";
+  elements.resultScorePanel.dataset.rank = scoreTitle.key;
+  elements.resultRank.textContent = scoreTitle.name;
+  elements.resultScore.textContent = score.total.toLocaleString("ja-JP");
+  elements.resultScoreMeta.textContent = `${human.rank}位・${difficultyLabel}・CPU ${state.players.length - 1}人・手番合計 ${formatDecisionTime(state.humanDecisionMs)}`;
+  const parts = [
+    `順位 ${score.rankPoints.toLocaleString("ja-JP")}`,
+    `速さ ${score.speedPoints.toLocaleString("ja-JP")}`,
+    `難易度 ${score.difficultyPoints.toLocaleString("ja-JP")}`,
+    `人数 ${score.opponentPoints.toLocaleString("ja-JP")}`,
+  ];
+  if (score.penaltyPoints) parts.push(`おてつき −${score.penaltyPoints.toLocaleString("ja-JP")}`);
+  elements.resultScoreBreakdown.textContent = parts.join(" ／ ");
+
   elements.rankingList.innerHTML = state.rankings
     .map((playerId, index) => {
       const player = state.players.find((candidate) => candidate.id === playerId);
@@ -1423,12 +1588,17 @@ function renderResult() {
     : '<li class="result-sentence-item"><span>今回は完成した英文がありませんでした。</span></li>';
 }
 
-function showToast(message, tone = "default") {
+function showDrawToast(card) {
+  showToast(`引いたカード：${TYPE_META[card.type].name}「${card.label}」`, "is-info", 2600);
+}
+
+function showToast(message, modifier, duration) {
+  elements.toastRegion.replaceChildren();
   const toast = document.createElement("div");
-  toast.className = `toast ${tone === "info" ? "is-info" : ""}`;
+  toast.className = `toast ${modifier}`;
   toast.textContent = message;
   elements.toastRegion.appendChild(toast);
-  window.setTimeout(() => toast.remove(), 3200);
+  window.setTimeout(() => toast.remove(), duration);
 }
 
 function openModal(modal) {
@@ -1500,6 +1670,31 @@ function runSelfChecks() {
   const focusCounts = cards
     .filter((card) => card.type === "verb")
     .reduce((counts, card) => ({ ...counts, [card.focusPattern]: (counts[card.focusPattern] ?? 0) + 1 }), {});
+  const typeCounts = cards.reduce(
+    (counts, card) => ({ ...counts, [card.type]: (counts[card.type] ?? 0) + 1 }),
+    {},
+  );
+  const normalStrongScore = calculateScore({
+    rank: 1,
+    playerCount: 3,
+    difficulty: "normal",
+    decisionMs: 40000,
+    penalties: 0,
+  }).total;
+  const hardModerateScore = calculateScore({
+    rank: 1,
+    playerCount: 3,
+    difficulty: "hard",
+    decisionMs: 90000,
+    penalties: 0,
+  }).total;
+  const secondPlaceScore = calculateScore({
+    rank: 2,
+    playerCount: 3,
+    difficulty: "normal",
+    decisionMs: 40000,
+    penalties: 0,
+  }).total;
 
   const checks = [
     [nounSurface(stationObject, "O1", reflexiveField, "SVO") === "itself", "再帰代名詞への変化"],
@@ -1517,20 +1712,64 @@ function runSelfChecks() {
     ],
     [getCompletedPatterns(ambiguousField).length === 2, "O2/Cの二重解釈"],
     [JSON.stringify(getCandidatePatterns(adjectiveField)) === JSON.stringify(["SVOC"]), "形容詞によるSVOC確定"],
-    [PATTERN_ORDER.every((pattern) => focusCounts[pattern] === 6), "5文型の動詞枚数バランス"],
+    [Math.max(...PATTERN_ORDER.map((pattern) => focusCounts[pattern])) - Math.min(...PATTERN_ORDER.map((pattern) => focusCounts[pattern])) <= 1, "5文型の動詞枚数バランス"],
+    [typeCounts.noun === 49 && typeCounts.adjective === 20 && typeCounts.verb === 27, "品詞別カード配分"],
     [buildDeck().length === 96, "デッキ枚数"],
     [!allActivePlayersPassed(2, 3) && allActivePlayersPassed(3, 3), "全員パス時の場流し"],
     [COMPLETION_CUT_IN_MS === 4000, "完成カットイン4秒"],
-    [COMPLETION_REVEAL_DELAY_MS === 1100 && Boolean(elements.completionBurst), "完成前の場演出"],
-    [CPU_THINK_DELAY_MS >= 1200 && CPU_CARD_TRAVEL_MS >= 800, "CPUの表示テンポ"],
+    [COMPLETION_REVEAL_DELAY_MS <= 800 && Boolean(elements.completionBurst), "軽量な完成前演出"],
+    [MATCH_INTRO_MS >= 1800 && Boolean(elements.matchIntro), "試合開始カットイン"],
+    [MISPLAY_CUT_IN_MS >= 800 && Boolean(elements.misplayBurst), "場内のおてつきカットイン"],
+    [
+      FIELD_FLUSH_MESSAGE === "全員が出せなかったため、場が流れました" &&
+        finishPass.toString().includes("showToast(FIELD_FLUSH_MESSAGE"),
+      "場流し通知",
+    ],
+    [
+      CPU_THINK_DELAY_MS.normal >= 1200 &&
+        CPU_THINK_DELAY_MS.hard < CPU_THINK_DELAY_MS.normal &&
+        CPU_AFTER_DRAW_DELAY_MS.hard < CPU_AFTER_DRAW_DELAY_MS.normal &&
+        CPU_CARD_TRAVEL_MS >= 800,
+      "難易度別のCPU表示テンポ",
+    ],
+    [!handleHumanDraw.toString().includes("state.selectedCardId = card.id"), "ドロー後の自動選択なし"],
     [
       PATTERN_ORDER.every((pattern, index) => completedPatternLabel(pattern) === `${pattern}・第${index + 1}文型`),
       "完成時の第何文型表示",
     ],
+    [elements.cpuCountButtons.length === 3, "CPU人数の上限3人"],
+    [!document.querySelector("#hintButton") && !document.querySelector("#stockPile"), "アシストと山札表示の撤廃"],
+    [Boolean(elements.themeIcon && elements.themeLabel && elements.turnInstruction), "再設計UIの主要要素"],
+    [
+      Object.entries(BASE_SLOT_META).every(([slot, meta]) => {
+        const renderedMeta = dynamicSlotMeta(slot);
+        return renderedMeta.code === meta.code && renderedMeta.name === meta.name;
+      }),
+      "スロット表記の固定",
+    ],
+    [Math.abs(normalStrongScore - hardModerateScore) <= 150, "難易度と速さのスコア均衡"],
+    [normalStrongScore - secondPlaceScore >= 3000, "順位による大きなスコア差"],
+    [Boolean(elements.resultScore && elements.resultScoreMeta && elements.resultScoreBreakdown), "スコア表示"],
+    [animateCpuPlay.toString().includes("rotate: false"), "CPUカード配置の無回転化"],
+    [
+      animateCpuDraw.toString().includes("animateDrawFromRight") &&
+        animateHumanDraw.toString().includes("animateDrawFromRight"),
+      "画面右側からのドロー演出",
+    ],
+    [
+      scoreTitleFor(14000).name === "文型師範" &&
+        scoreTitleFor(13990).name === "文型師匠" &&
+        scoreTitleFor(10000).name === "文型師匠" &&
+        scoreTitleFor(6000).name === "文型弟子" &&
+        scoreTitleFor(5990).name === "文型見習い",
+      "スコア称号の境界",
+    ],
+    [END_CURTAIN_DURATION_MS >= 1400 && Boolean(elements.endCurtain), "ふすま終了演出"],
+    [!document.querySelector(".result-burst"), "リザルト装飾文字の撤廃"],
   ];
   const failed = checks.filter(([passed]) => !passed).map(([, label]) => label);
-  if (failed.length) console.error(`文型ゲーム自己診断エラー: ${failed.join("、")}`);
-  else console.info(`文型ゲーム自己診断: ${checks.length}項目すべて正常`);
+  if (failed.length) console.error(`文型道場自己診断エラー: ${failed.join("、")}`);
+  else console.info(`文型道場自己診断: ${checks.length}項目すべて正常`);
 }
 
 elements.cpuCountButtons.forEach((button) => {
@@ -1566,7 +1805,6 @@ elements.restartButton.addEventListener("click", () => {
   }
 });
 elements.drawButton.addEventListener("click", handleHumanDraw);
-elements.hintButton.addEventListener("click", showHint);
 elements.rulesButton.addEventListener("click", () => openModal(elements.rulesModal));
 elements.closeRulesButton.addEventListener("click", () => closeModal(elements.rulesModal));
 elements.continueButton.addEventListener("click", continueAfterCompletion);

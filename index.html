@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="S・V・O/C・O₂/Cのカードをつないで英文を作る、一人用の文型カードゲーム試作版"
+      content="名詞・動詞・形容詞のカードを並べ、文型師範を目指す一人用カードゲーム"
     />
-    <title>文型ゲーム | 試作版</title>
+    <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="dojo.css" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -17,32 +17,40 @@
 
     <main class="app-shell">
       <header class="topbar">
-        <div>
-          <h1>文型ゲーム<span>α</span></h1>
+        <div class="brand-lockup">
+          <h1>文型道場<span>α</span></h1>
         </div>
         <div class="header-actions">
-          <button id="themeButton" class="button button-ghost" type="button" aria-pressed="false">☾ ダーク</button>
-          <button id="rulesButton" class="button button-ghost" type="button">遊び方</button>
-          <button id="restartButton" class="button button-ghost is-hidden" type="button">スタート画面へ</button>
+          <button id="themeButton" class="button button-ghost" type="button" aria-pressed="false">
+            <img id="themeIcon" class="button-icon" src="assets/icons/moon.svg" alt="" aria-hidden="true" />
+            <span id="themeLabel">ダーク</span>
+          </button>
+          <button id="rulesButton" class="button button-ghost" type="button">
+            <img class="button-icon" src="assets/icons/circle-help.svg" alt="" aria-hidden="true" />
+            <span>遊び方</span>
+          </button>
+          <button id="restartButton" class="button button-ghost is-hidden" type="button">
+            <img class="button-icon" src="assets/icons/rotate-ccw.svg" alt="" aria-hidden="true" />
+            <span>スタート画面へ</span>
+          </button>
         </div>
       </header>
 
       <section id="setupScreen" class="setup-card" aria-labelledby="setupTitle">
         <div class="setup-copy">
-          <h2 id="setupTitle">カードを置いて、英文を完成させよう。</h2>
+          <h2 id="setupTitle">心・技・体を磨く、<span class="setup-title-line">文型師範への道。</span></h2>
           <p>
-            名詞・動詞・形容詞をS／V／O/C／O₂/Cへ置き、手札を先になくした人の勝ちです。
-            おかしな意味の文は歓迎。でも、英文の形はきっちり守ります。
+            名詞・動詞・形容詞のカードを並べ、手札を先になくした者の勝利。
+            勝利の鍵は動詞にあり。
           </p>
         </div>
 
         <div class="setup-controls">
           <label for="cpuCount">対戦するCPU</label>
-          <div class="segmented" id="cpuCount" role="radiogroup" aria-label="CPUの人数">
+          <div class="segmented segmented-three" id="cpuCount" role="radiogroup" aria-label="CPUの人数">
             <button type="button" data-cpu-count="1" role="radio" aria-checked="false">1人</button>
             <button type="button" data-cpu-count="2" role="radio" aria-checked="true" class="is-selected">2人</button>
             <button type="button" data-cpu-count="3" role="radio" aria-checked="false">3人</button>
-            <button type="button" data-cpu-count="4" role="radio" aria-checked="false">4人</button>
           </div>
           <label for="cpuDifficulty">CPUのレベル</label>
           <div class="segmented segmented-two" id="cpuDifficulty" role="radiogroup" aria-label="CPUのレベル">
@@ -50,37 +58,29 @@
             <button type="button" data-cpu-difficulty="hard" role="radio" aria-checked="false">ハード</button>
           </div>
           <button id="startButton" class="button button-primary button-large" type="button">
-            ゲームをはじめる
+            <img class="button-icon" src="assets/icons/play.svg" alt="" aria-hidden="true" />
+            <span>ゲームをはじめる</span>
           </button>
           <p class="setup-note">おすすめ：あなた＋CPU 2人</p>
         </div>
       </section>
 
       <section id="gameScreen" class="game-screen is-hidden" aria-live="polite">
-        <section class="game-status" aria-label="ゲーム状況">
-          <div class="turn-block">
-            <span class="status-label">手番</span>
-            <strong id="turnName">あなた</strong>
-          </div>
-          <p id="statusMessage" class="status-message">カードを選んでください。</p>
-          <div id="stockPile" class="stock-pile" role="img" aria-label="山札 0枚">
-            <span class="stock-cards" aria-hidden="true">
-              <i class="stock-card-back stock-card-back-3"></i>
-              <i class="stock-card-back stock-card-back-2"></i>
-              <i class="stock-card-back stock-card-back-1"></i>
-            </span>
-            <span class="stock-copy"><span>山札</span><strong><span id="deckCount">0</span>枚</strong></span>
-          </div>
-        </section>
+        <p class="turn-line" aria-live="polite">
+          <span>現在は</span><strong id="turnName">あなた</strong><span id="turnInstruction">の手番です。カードを一枚、場に置いてください。</span>
+        </p>
 
         <section id="opponents" class="opponents" aria-label="対戦相手"></section>
 
-        <section class="table-area" aria-labelledby="tableTitle">
+        <section class="table-area" aria-label="場の英文">
           <div id="completionBurst" class="completion-burst" aria-hidden="true">
             <strong>完成！</strong>
           </div>
-          <div class="table-heading">
-            <h2 id="tableTitle">場の英文</h2>
+          <div id="misplayBurst" class="misplay-burst" role="status" aria-live="assertive" aria-hidden="true">
+            <strong>おてつき！</strong>
+            <span>一枚引く</span>
+          </div>
+          <div class="table-heading table-heading-compact">
             <div id="patternCandidates" class="pattern-candidates" aria-label="現在可能な文型"></div>
           </div>
 
@@ -89,16 +89,15 @@
           </div>
 
           <div id="sentenceBoard" class="sentence-board" aria-label="英文のスロット"></div>
-
-          <div class="table-footer">
-            <button id="hintButton" class="button button-ghost" type="button">ヒント</button>
-          </div>
         </section>
 
         <section class="player-area" aria-labelledby="handTitle">
           <div class="player-heading">
             <h2 id="handTitle">あなたの手札 <span id="handCount">7</span>枚</h2>
-            <button id="drawButton" class="button button-draw" type="button" disabled>山札からとる</button>
+            <button id="drawButton" class="button button-draw" type="button" disabled>
+              <img class="button-icon" src="assets/icons/layers.svg" alt="" aria-hidden="true" />
+              <span>山札からとる</span>
+            </button>
           </div>
           <div id="hand" class="hand" aria-label="あなたの手札"></div>
         </section>
@@ -108,18 +107,33 @@
 
     <div id="toastRegion" class="toast-region" aria-live="assertive" aria-atomic="true"></div>
 
+    <div id="matchIntro" class="match-intro is-hidden" role="status" aria-live="assertive" aria-hidden="true">
+      <span>いざ尋常に…</span>
+      <strong>参る！</strong>
+    </div>
+
+    <div id="endCurtain" class="end-curtain is-hidden" aria-hidden="true">
+      <div class="fusuma-panel fusuma-left"><span></span></div>
+      <div class="fusuma-panel fusuma-right"><span></span></div>
+      <strong>そこまで！</strong>
+    </div>
+
     <div id="rulesModal" class="modal-backdrop is-hidden" role="presentation">
       <section class="modal rules-modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
-        <button id="closeRulesButton" class="modal-close" type="button" aria-label="遊び方を閉じる">×</button>
+        <button id="closeRulesButton" class="modal-close" type="button" aria-label="遊び方を閉じる">
+          <img src="assets/icons/x.svg" alt="" aria-hidden="true" />
+        </button>
         <h2 id="rulesTitle">遊び方</h2>
         <ol class="rules-list">
-          <li>自分の番では、手札を光っているスロットへドラッグ＆ドロップします。タップ操作も使えます。</li>
+          <li>自分の番では、手札を置けると思うスロットへドラッグ＆ドロップします。タップ操作も使えます。</li>
           <li>3番目はO/C、4番目はO₂/C共用です。動詞や置いたカードによって役割が変化します。</li>
-          <li>手番の人の枠が光ります。出せないときは、手元の「山札からとる」で1枚だけ引きます。</li>
+          <li>置けない場所へ出すと「おてつき」です。山札から1枚引き、その手番は終了します。</li>
+          <li>出せないと思ったときは、手元の「山札からとる」で1枚だけ引きます。</li>
           <li>必要なスロットが全部埋まると英文完成。使ったカードは流れます。</li>
           <li>引いたカードも出せなければパス。残っている全員が連続でパスすると、場のカードが流れます。</li>
           <li>同じ存在が主語と目的語になった場合、目的語は自動的に再帰代名詞へ変わります。</li>
           <li>手札を先になくした順に上がり。最後の1人まで順位を決めます。</li>
+          <li>リザルトのスコアは、順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数で決まります。</li>
         </ol>
         <div class="rules-example">
           <span>例</span>
@@ -136,15 +150,24 @@
         <p id="completionEnglish" class="completion-english"></p>
         <div id="completionTranslations" class="completion-translations"></div>
         <p id="completionNote" class="completion-note"></p>
-        <button id="continueButton" class="button button-primary" type="button">次のターンへ</button>
+        <button id="continueButton" class="button button-primary" type="button">
+          <span>次のターンへ</span>
+          <img class="button-icon" src="assets/icons/arrow-right.svg" alt="" aria-hidden="true" />
+        </button>
         <div class="completion-timer" aria-hidden="true"></div>
       </section>
     </div>
 
     <div id="resultModal" class="modal-backdrop is-hidden" role="presentation">
       <section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
-        <p class="result-burst" aria-hidden="true">★</p>
-        <h2 id="resultTitle">対戦終了！</h2>
+        <h2 id="resultTitle">稽古結果</h2>
+        <section class="result-score" aria-labelledby="resultScoreTitle">
+          <p id="resultScoreTitle" class="result-score-label">あなたのスコア</p>
+          <p id="resultRank" class="result-rank">文型見習い</p>
+          <p class="result-score-value"><strong id="resultScore">0</strong><span>点</span></p>
+          <p id="resultScoreMeta" class="result-score-meta"></p>
+          <p id="resultScoreBreakdown" class="result-score-breakdown"></p>
+        </section>
         <ol id="rankingList" class="ranking-list"></ol>
         <div class="result-sentences">
           <div class="result-sentences-heading">
@@ -153,7 +176,10 @@
           </div>
           <ol id="resultSentenceList" class="result-sentence-list"></ol>
         </div>
-        <button id="playAgainButton" class="button button-primary button-large" type="button">もう一度遊ぶ</button>
+        <button id="playAgainButton" class="button button-primary button-large" type="button">
+          <img class="button-icon" src="assets/icons/rotate-ccw.svg" alt="" aria-hidden="true" />
+          <span>もう一度遊ぶ</span>
+        </button>
       </section>
     </div>
 
