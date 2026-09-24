@@ -16,9 +16,10 @@ const SCORE_SPEED_DECAY_SECONDS = 85;
 const SCORE_HARD_BONUS = 1400;
 const SCORE_EXTRA_CPU_BONUS = 400;
 const SCORE_MISTAKE_PENALTY = 300;
+const SCORE_SHIHAN_MINIMUM = 14500;
 const FIELD_FLUSH_MESSAGE = "全員が出せなかったため、場が流れました";
 const SCORE_TITLES = [
-  { minimum: 14000, name: "文型師範", key: "shihan" },
+  { minimum: SCORE_SHIHAN_MINIMUM, name: "文型師範", key: "shihan" },
   { minimum: 10000, name: "文型師匠", key: "shisho" },
   { minimum: 6000, name: "文型弟子", key: "deshi" },
   { minimum: Number.NEGATIVE_INFINITY, name: "文型見習い", key: "minarai" },
@@ -123,7 +124,6 @@ const elements = {
   turnName: document.querySelector("#turnName"),
   turnInstruction: document.querySelector("#turnInstruction"),
   opponents: document.querySelector("#opponents"),
-  patternCandidates: document.querySelector("#patternCandidates"),
   sentencePreview: document.querySelector("#sentencePreview"),
   sentenceBoard: document.querySelector("#sentenceBoard"),
   tableArea: document.querySelector(".table-area"),
@@ -152,6 +152,7 @@ const elements = {
   resultSentenceCount: document.querySelector("#resultSentenceCount"),
   resultSentenceList: document.querySelector("#resultSentenceList"),
   playAgainButton: document.querySelector("#playAgainButton"),
+  resultSetupButton: document.querySelector("#resultSetupButton"),
 };
 
 function emptyField() {
@@ -916,7 +917,7 @@ function showCompletion(entry) {
   elements.completionPatterns.innerHTML = entry.analyses
     .map(
       (analysis) =>
-        `<span class="pattern-chip is-locked">${escapeHtml(completedPatternLabel(analysis.pattern))}</span>`,
+        `<span class="completion-pattern-chip">${escapeHtml(completedPatternLabel(analysis.pattern))}</span>`,
     )
     .join("");
   elements.completionEnglish.textContent = entry.sentence;
@@ -1246,7 +1247,6 @@ function render() {
   if (!state.gameStarted) return;
   renderStatus();
   renderOpponents();
-  renderPatterns();
   renderSentencePreview();
   renderBoard();
   renderHand();
@@ -1290,13 +1290,6 @@ function renderOpponents() {
         </article>
       `;
     })
-    .join("");
-}
-
-function renderPatterns() {
-  const candidates = getCandidatePatterns();
-  elements.patternCandidates.innerHTML = candidates
-    .map((pattern) => `<span class="pattern-chip">${pattern}</span>`)
     .join("");
 }
 
@@ -1695,6 +1688,13 @@ function runSelfChecks() {
     decisionMs: 40000,
     penalties: 0,
   }).total;
+  const normalMaximumScore = calculateScore({
+    rank: 1,
+    playerCount: 4,
+    difficulty: "normal",
+    decisionMs: 0,
+    penalties: 0,
+  }).total;
 
   const checks = [
     [nounSurface(stationObject, "O1", reflexiveField, "SVO") === "itself", "再帰代名詞への変化"],
@@ -1740,6 +1740,7 @@ function runSelfChecks() {
     [elements.cpuCountButtons.length === 3, "CPU人数の上限3人"],
     [!document.querySelector("#hintButton") && !document.querySelector("#stockPile"), "アシストと山札表示の撤廃"],
     [Boolean(elements.themeIcon && elements.themeLabel && elements.turnInstruction), "再設計UIの主要要素"],
+    [!document.querySelector("#patternCandidates"), "文型候補表示の撤廃"],
     [
       Object.entries(BASE_SLOT_META).every(([slot, meta]) => {
         const renderedMeta = dynamicSlotMeta(slot);
@@ -1750,6 +1751,7 @@ function runSelfChecks() {
     [Math.abs(normalStrongScore - hardModerateScore) <= 150, "難易度と速さのスコア均衡"],
     [normalStrongScore - secondPlaceScore >= 3000, "順位による大きなスコア差"],
     [Boolean(elements.resultScore && elements.resultScoreMeta && elements.resultScoreBreakdown), "スコア表示"],
+    [Boolean(elements.resultSetupButton), "リザルトからスタート画面へ戻るボタン"],
     [animateCpuPlay.toString().includes("rotate: false"), "CPUカード配置の無回転化"],
     [
       animateCpuDraw.toString().includes("animateDrawFromRight") &&
@@ -1757,13 +1759,14 @@ function runSelfChecks() {
       "画面右側からのドロー演出",
     ],
     [
-      scoreTitleFor(14000).name === "文型師範" &&
-        scoreTitleFor(13990).name === "文型師匠" &&
+      scoreTitleFor(SCORE_SHIHAN_MINIMUM).name === "文型師範" &&
+        scoreTitleFor(SCORE_SHIHAN_MINIMUM - 10).name === "文型師匠" &&
         scoreTitleFor(10000).name === "文型師匠" &&
         scoreTitleFor(6000).name === "文型弟子" &&
         scoreTitleFor(5990).name === "文型見習い",
       "スコア称号の境界",
     ],
+    [normalMaximumScore < SCORE_SHIHAN_MINIMUM, "ノーマルでは師範に届かない難度"],
     [END_CURTAIN_DURATION_MS >= 1400 && Boolean(elements.endCurtain), "ふすま終了演出"],
     [!document.querySelector(".result-burst"), "リザルト装飾文字の撤廃"],
   ];
@@ -1799,6 +1802,7 @@ elements.themeButton.addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
 elements.playAgainButton.addEventListener("click", startGame);
+elements.resultSetupButton.addEventListener("click", returnToSetup);
 elements.restartButton.addEventListener("click", () => {
   if (state.gameOver || window.confirm("現在の対戦を終了して、スタート画面へ戻りますか？")) {
     returnToSetup();

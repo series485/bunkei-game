@@ -9,7 +9,7 @@
     />
     <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="dojo.css?v=20260924-1" />
+    <link rel="stylesheet" href="dojo.css?v=20260924-2" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -80,10 +80,6 @@
             <strong>おてつき！</strong>
             <span>一枚引く</span>
           </div>
-          <div class="table-heading table-heading-compact">
-            <div id="patternCandidates" class="pattern-candidates" aria-label="現在可能な文型"></div>
-          </div>
-
           <div id="sentencePreview" class="sentence-preview">
             <span class="preview-placeholder">カードを置くと、ここに英文が現れます。</span>
           </div>
@@ -126,14 +122,14 @@
         <h2 id="rulesTitle">遊び方</h2>
         <ol class="rules-list">
           <li>自分の番では、手札を置けると思うスロットへドラッグ＆ドロップします。タップ操作も使えます。</li>
-          <li>3番目はO/C、4番目はO₂/C共用です。動詞や置いたカードによって役割が変化します。</li>
+          <li>左から3番目の枠はO/C、4番目の枠はO₂/Cの共用です。動詞や置いたカードによって役割が変化します。</li>
           <li>置けない場所へ出すと「おてつき」です。山札から1枚引き、その手番は終了します。</li>
           <li>出せないと思ったときは、手元の「山札からとる」で1枚だけ引きます。</li>
           <li>必要なスロットが全部埋まると英文完成。使ったカードは流れます。</li>
           <li>引いたカードも出せなければパス。残っている全員が連続でパスすると、場のカードが流れます。</li>
           <li>同じ存在が主語と目的語になった場合、目的語は自動的に再帰代名詞へ変わります。</li>
           <li>手札を先になくした順に上がり。最後の1人まで順位を決めます。</li>
-          <li>リザルトのスコアは、順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数で決まります。</li>
+          <li>リザルトのスコアは、順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数で決まります。文型師範は14,500点以上で、ハードモードのみ到達できます。</li>
         </ol>
         <div class="rules-example">
           <span>例</span>
@@ -176,13 +172,19 @@
           </div>
           <ol id="resultSentenceList" class="result-sentence-list"></ol>
         </div>
-        <button id="playAgainButton" class="button button-primary button-large" type="button">
-          <img class="button-icon" src="assets/icons/rotate-ccw.svg" alt="" aria-hidden="true" />
-          <span>もう一度遊ぶ</span>
-        </button>
+        <div class="result-actions">
+          <button id="playAgainButton" class="button button-primary button-large" type="button">
+            <img class="button-icon" src="assets/icons/rotate-ccw.svg" alt="" aria-hidden="true" />
+            <span>もう一度遊ぶ</span>
+          </button>
+          <button id="resultSetupButton" class="button button-ghost button-large" type="button">
+            <img class="button-icon" src="assets/icons/door-open.svg" alt="" aria-hidden="true" />
+            <span>スタート画面へ</span>
+          </button>
+        </div>
       </section>
     </div>
 
-    <script src="app.js?v=20260924-1"></script>
+    <script src="app.js?v=20260924-2"></script>
   </body>
 </html>
