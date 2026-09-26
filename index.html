@@ -9,7 +9,7 @@
     />
     <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="dojo.css?v=20260926-1" />
+    <link rel="stylesheet" href="dojo.css?v=20260926-visual-3" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -21,6 +21,10 @@
           <h1>文型道場<span>α</span></h1>
         </div>
         <div class="header-actions">
+          <button id="soundButton" class="button button-ghost sound-toggle" type="button" aria-pressed="false" aria-label="音をオンにする" title="音をオンにする">
+            <img id="soundIcon" class="button-icon" src="assets/icons/volume-x.svg" alt="" aria-hidden="true" />
+            <span id="soundLabel" aria-hidden="true">音OFF</span>
+          </button>
           <button id="themeButton" class="button button-ghost" type="button" aria-pressed="false">
             <img id="themeIcon" class="button-icon" src="assets/icons/moon.svg" alt="" aria-hidden="true" />
             <span id="themeLabel">ダーク</span>
@@ -29,39 +33,58 @@
             <img class="button-icon" src="assets/icons/circle-help.svg" alt="" aria-hidden="true" />
             <span>遊び方</span>
           </button>
-          <button id="restartButton" class="button button-ghost is-hidden" type="button">
+          <button id="restartButton" class="button button-ghost is-hidden" type="button" aria-label="スタート画面へ戻る" title="スタート画面へ戻る">
             <img class="button-icon" src="assets/icons/rotate-ccw.svg" alt="" aria-hidden="true" />
             <span>スタート画面へ</span>
           </button>
         </div>
       </header>
 
-      <section id="setupScreen" class="setup-card" aria-labelledby="setupTitle">
-        <div class="setup-copy">
-          <h2 id="setupTitle">心・技・体を磨く、<span class="setup-title-line">文型師範への道。</span></h2>
-          <p>
-            名詞・動詞・形容詞のカードを並べ、手札を先になくした者の勝利。
-            勝利の鍵は動詞にあり。
-          </p>
+      <section id="setupScreen" class="setup-stage" aria-labelledby="setupTitle">
+        <div class="setup-pattern-rain" aria-hidden="true">
+          <span class="falling-pattern depth-near" style="--x: 2%; --rest-y: 24%; --duration: 19s; --delay: -5s; --drift: 18px">SV</span>
+          <span class="falling-pattern depth-far" style="--x: 17%; --rest-y: 55%; --duration: 28s; --delay: -14s; --drift: -12px">SVC</span>
+          <span class="falling-pattern depth-mid" style="--x: 32%; --rest-y: 10%; --duration: 23s; --delay: -11s; --drift: 22px">SVO</span>
+          <span class="falling-pattern depth-near" style="--x: 48%; --rest-y: 82%; --duration: 22s; --delay: -15s; --drift: -17px">SVOO</span>
+          <span class="falling-pattern depth-mid" style="--x: 61%; --rest-y: 73%; --duration: 25s; --delay: -20s; --drift: 12px">SVOC</span>
+          <span class="falling-pattern depth-far" style="--x: 95%; --rest-y: 82%; --duration: 30s; --delay: -24s; --drift: -11px">SV</span>
+          <span class="falling-pattern depth-near" style="--x: 7%; --rest-y: 64%; --duration: 20s; --delay: -14s; --drift: 11px">SVC</span>
+          <span class="falling-pattern depth-mid" style="--x: 73%; --rest-y: 15%; --duration: 24s; --delay: -4s; --drift: -19px">SVOO</span>
+          <span class="falling-pattern depth-far" style="--x: 43%; --rest-y: 40%; --duration: 29s; --delay: -16s; --drift: 16px">SVOC</span>
+          <span class="falling-pattern depth-mid" style="--x: 90%; --rest-y: 66%; --duration: 21s; --delay: -15s; --drift: -16px">SV</span>
+          <span class="falling-pattern depth-far" style="--x: 11%; --rest-y: 8%; --duration: 26s; --delay: -9s; --drift: 10px">SVO</span>
+          <span class="falling-pattern depth-near" style="--x: 77%; --rest-y: 88%; --duration: 23s; --delay: -17s; --drift: -18px">SVOC</span>
+          <span class="falling-pattern depth-mid" style="--x: 23%; --rest-y: 90%; --duration: 27s; --delay: -22s; --drift: 13px">SVC</span>
+          <span class="falling-pattern depth-far" style="--x: 57%; --rest-y: 28%; --duration: 31s; --delay: -8s; --drift: -17px">SVOO</span>
+          <span class="falling-pattern depth-near" style="--x: 88%; --rest-y: 7%; --duration: 21s; --delay: -2s; --drift: -14px">SVO</span>
         </div>
+        <div class="setup-card">
+          <div class="setup-copy">
+            <h2 id="setupTitle">心・技・体を磨く、<span class="setup-title-line">文型師範への道。</span></h2>
+            <p>
+              名詞・動詞・形容詞のカードを並べ、手札を先になくした者の勝利。
+              勝利の鍵は動詞にあり。
+            </p>
+          </div>
 
-        <div class="setup-controls">
-          <label for="cpuCount">対戦するCPU</label>
-          <div class="segmented segmented-three" id="cpuCount" role="radiogroup" aria-label="CPUの人数">
-            <button type="button" data-cpu-count="1" role="radio" aria-checked="false">1人</button>
-            <button type="button" data-cpu-count="2" role="radio" aria-checked="true" class="is-selected">2人</button>
-            <button type="button" data-cpu-count="3" role="radio" aria-checked="false">3人</button>
+          <div class="setup-controls">
+            <label for="cpuCount">対戦するCPU</label>
+            <div class="segmented segmented-three" id="cpuCount" role="radiogroup" aria-label="CPUの人数">
+              <button type="button" data-cpu-count="1" role="radio" aria-checked="false">1人</button>
+              <button type="button" data-cpu-count="2" role="radio" aria-checked="true" class="is-selected">2人</button>
+              <button type="button" data-cpu-count="3" role="radio" aria-checked="false">3人</button>
+            </div>
+            <label for="cpuDifficulty">CPUのレベル</label>
+            <div class="segmented segmented-two" id="cpuDifficulty" role="radiogroup" aria-label="CPUのレベル">
+              <button type="button" data-cpu-difficulty="normal" role="radio" aria-checked="true" class="is-selected">ノーマル</button>
+              <button type="button" data-cpu-difficulty="hard" role="radio" aria-checked="false">ハード</button>
+            </div>
+            <button id="startButton" class="button button-primary button-large" type="button">
+              <img class="button-icon" src="assets/icons/play.svg" alt="" aria-hidden="true" />
+              <span>ゲームをはじめる</span>
+            </button>
+            <p class="setup-note">おすすめ：あなた＋CPU 2人</p>
           </div>
-          <label for="cpuDifficulty">CPUのレベル</label>
-          <div class="segmented segmented-two" id="cpuDifficulty" role="radiogroup" aria-label="CPUのレベル">
-            <button type="button" data-cpu-difficulty="normal" role="radio" aria-checked="true" class="is-selected">ノーマル</button>
-            <button type="button" data-cpu-difficulty="hard" role="radio" aria-checked="false">ハード</button>
-          </div>
-          <button id="startButton" class="button button-primary button-large" type="button">
-            <img class="button-icon" src="assets/icons/play.svg" alt="" aria-hidden="true" />
-            <span>ゲームをはじめる</span>
-          </button>
-          <p class="setup-note">おすすめ：あなた＋CPU 2人</p>
         </div>
       </section>
 
@@ -146,7 +169,7 @@
           </div>
           <div class="rules-detail">
             <h4>スコアと称号</h4>
-            <p>順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数でスコアが決まります。</p>
+            <p>順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数でスコアが決まります。おてつきは1回につき500点減点です。</p>
             <table class="rules-rank-table" aria-label="称号と必要な点数">
               <thead>
                 <tr><th scope="col">称号</th><th scope="col">点数</th></tr>
@@ -165,9 +188,8 @@
     </div>
 
     <div id="completionModal" class="completion-backdrop is-hidden" role="presentation">
-      <section class="completion-card" role="dialog" aria-modal="true" aria-labelledby="completionTitle">
-        <h2 id="completionTitle">英文完成！</h2>
-        <div id="completionPatterns" class="completion-patterns"></div>
+      <section class="completion-card" role="dialog" aria-modal="true" aria-labelledby="completionPatterns">
+        <h2 id="completionPatterns" class="completion-patterns"></h2>
         <p id="completionEnglish" class="completion-english"></p>
         <div id="completionTranslations" class="completion-translations"></div>
         <p id="completionNote" class="completion-note"></p>
@@ -210,6 +232,7 @@
       </section>
     </div>
 
-    <script src="app.js?v=20260926-1"></script>
+    <audio id="bgmAudio" preload="none" loop muted></audio>
+    <script src="app.js?v=20260926-visual-3"></script>
   </body>
 </html>

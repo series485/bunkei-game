@@ -3,8 +3,11 @@
 const COMPLETION_CUT_IN_MS = 4000;
 const COMPLETION_REVEAL_DELAY_MS = 720;
 const MATCH_INTRO_MS = 2100;
+const MATCH_INTRO_PRELUDE_SOUND_MS = 120;
+const MATCH_INTRO_CHARGE_SOUND_MS = 1100;
 const MISPLAY_CUT_IN_MS = 950;
 const END_CURTAIN_DURATION_MS = 1550;
+const END_STAMP_SOUND_MS = 650;
 const CPU_THINK_DELAY_MS = Object.freeze({ normal: 1250, hard: 1000 });
 const CPU_CARD_TRAVEL_MS = 820;
 const CPU_DRAW_TRAVEL_MS = 600;
@@ -15,7 +18,7 @@ const SCORE_SPEED_MAX = 5200;
 const SCORE_SPEED_DECAY_SECONDS = 85;
 const SCORE_HARD_BONUS = 1400;
 const SCORE_EXTRA_CPU_BONUS = 400;
-const SCORE_MISTAKE_PENALTY = 300;
+const SCORE_MISTAKE_PENALTY = 500;
 const SCORE_SHIHAN_MINIMUM = 14500;
 const FIELD_FLUSH_MESSAGE = "全員が出せなかったため、場が流れました";
 const SCORE_TITLES = [
@@ -24,6 +27,24 @@ const SCORE_TITLES = [
   { minimum: 6000, name: "文型弟子", key: "deshi" },
   { minimum: Number.NEGATIVE_INFINITY, name: "文型見習い", key: "minarai" },
 ];
+
+const BGM_TRACKS = {
+  setup: { src: "assets/audio/bgm-setup.mp3", volume: 0.3 },
+  battle: { src: "assets/audio/bgm-battle.mp3", volume: 0.25 },
+};
+
+const SOUND_EFFECTS = {
+  click: { src: "assets/audio/se-click.mp3", volume: 0.42 },
+  introPrelude: { src: "assets/audio/se-intro-prelude.mp3", volume: 0.6 },
+  introCharge: { src: "assets/audio/se-intro-charge.mp3", volume: 0.58 },
+  misplay: { src: "assets/audio/se-misplay.mp3", volume: 0.78 },
+  completion: { src: "assets/audio/se-completion.mp3", volume: 0.62 },
+  end: { src: "assets/audio/se-end.mp3", volume: 0.62 },
+  "rank-shihan": { src: "assets/audio/se-rank-shihan.mp3", volume: 0.65 },
+  "rank-shisho": { src: "assets/audio/se-rank-shisho.mp3", volume: 0.58 },
+  "rank-deshi": { src: "assets/audio/se-rank-deshi.mp3", volume: 0.58 },
+  "rank-minarai": { src: "assets/audio/se-rank-minarai.mp3", volume: 0.58 },
+};
 
 const PATTERNS = {
   SV: { slots: ["S", "V"], o1Role: null, xRole: null, description: "主語＋動詞", schoolForm: "第1文型" },
@@ -104,6 +125,7 @@ const state = {
   completionTimer: null,
   matchIntroTimer: null,
   endSequenceTimer: null,
+  endSoundTimer: null,
   cpuTimer: null,
 };
 
@@ -113,6 +135,10 @@ const elements = {
   themeButton: document.querySelector("#themeButton"),
   themeIcon: document.querySelector("#themeIcon"),
   themeLabel: document.querySelector("#themeLabel"),
+  soundButton: document.querySelector("#soundButton"),
+  soundIcon: document.querySelector("#soundIcon"),
+  soundLabel: document.querySelector("#soundLabel"),
+  bgmAudio: document.querySelector("#bgmAudio"),
   startButton: document.querySelector("#startButton"),
   restartButton: document.querySelector("#restartButton"),
   rulesButton: document.querySelector("#rulesButton"),
@@ -154,6 +180,166 @@ const elements = {
   playAgainButton: document.querySelector("#playAgainButton"),
   resultSetupButton: document.querySelector("#resultSetupButton"),
 };
+
+function createAudioOutput() {
+  if (window.location.protocol === "file:") return { context: null, bgmGain: null };
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return { context: null, bgmGain: null };
+  try {
+    const context = new AudioContextClass();
+    const bgmGain = context.createGain();
+    context.createMediaElementSource(elements.bgmAudio).connect(bgmGain);
+    bgmGain.connect(context.destination);
+    bgmGain.gain.value = 0;
+    return { context, bgmGain };
+  } catch (error) {
+    console.warn("音声出力を初期化できませんでした", error);
+    return { context: null, bgmGain: null };
+  }
+}
+
+const audioOutput = createAudioOutput();
+const sound = {
+  enabled: false,
+  phase: "setup",
+  bgmName: null,
+  introTimers: [],
+  context: audioOutput.context,
+  bgmGain: audioOutput.bgmGain,
+  effectBuffers: new Map(),
+  activeEffects: new Set(),
+  effectGeneration: 0,
+  fallbackEffects: new Map(
+    Object.entries(SOUND_EFFECTS).map(([name, config]) => {
+      const audio = new Audio(config.src);
+      audio.preload = "none";
+      audio.muted = true;
+      audio.volume = config.volume;
+      return [name, audio];
+    }),
+  ),
+};
+
+if (sound.context && window.location.protocol !== "file:") {
+  for (const [name, config] of Object.entries(SOUND_EFFECTS)) {
+    sound.effectBuffers.set(
+      name,
+      fetch(config.src)
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.arrayBuffer();
+        })
+        .then((data) => sound.context.decodeAudioData(data))
+        .catch((error) => {
+          if (error.name !== "AbortError") console.warn(`効果音を読み込めませんでした: ${name}`, error);
+          return null;
+        }),
+    );
+  }
+}
+
+function updateSoundButton() {
+  const enabled = sound.enabled;
+  const actionLabel = enabled ? "音をオフにする" : "音をオンにする";
+  elements.soundButton.setAttribute("aria-pressed", String(enabled));
+  elements.soundButton.setAttribute("aria-label", actionLabel);
+  elements.soundButton.title = actionLabel;
+  elements.soundIcon.src = enabled ? "assets/icons/volume-2.svg" : "assets/icons/volume-x.svg";
+  elements.soundLabel.textContent = enabled ? "音ON" : "音OFF";
+}
+
+function playBgm(name, { silent = false, restart = false } = {}) {
+  if (!sound.enabled) return;
+  const track = BGM_TRACKS[name];
+  const bgm = elements.bgmAudio;
+  if (sound.bgmName !== name) {
+    bgm.pause();
+    bgm.src = track.src;
+    sound.bgmName = name;
+    restart = true;
+  }
+  if (restart) bgm.currentTime = 0;
+  if (sound.bgmGain) {
+    bgm.volume = 1;
+    bgm.muted = false;
+    sound.bgmGain.gain.value = silent ? 0 : track.volume;
+  } else {
+    bgm.volume = silent ? 0 : track.volume;
+    bgm.muted = silent;
+  }
+  void bgm.play().catch((error) => {
+    if (error.name !== "AbortError") console.warn("BGMを再生できませんでした", error);
+  });
+}
+
+function playFallbackEffect(name) {
+  const audio = sound.fallbackEffects.get(name);
+  if (!audio) return;
+  audio.pause();
+  audio.currentTime = 0;
+  void audio.play().catch((error) => {
+    if (error.name !== "AbortError") console.warn(`効果音を再生できませんでした: ${name}`, error);
+  });
+}
+
+function playEffect(name) {
+  if (!sound.enabled) return;
+  const bufferPromise = sound.effectBuffers.get(name);
+  if (!bufferPromise) return playFallbackEffect(name);
+  const generation = sound.effectGeneration;
+  void bufferPromise.then((buffer) => {
+    if (!sound.enabled || generation !== sound.effectGeneration) return;
+    if (!buffer) return playFallbackEffect(name);
+    const source = sound.context.createBufferSource();
+    const gain = sound.context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = SOUND_EFFECTS[name].volume;
+    source.connect(gain).connect(sound.context.destination);
+    source.addEventListener("ended", () => sound.activeEffects.delete(source), { once: true });
+    sound.activeEffects.add(source);
+    source.start();
+  }).catch((error) => console.warn(`効果音を再生できませんでした: ${name}`, error));
+}
+
+function stopEffects() {
+  sound.effectGeneration += 1;
+  for (const source of sound.activeEffects) {
+    try {
+      source.stop();
+    } catch {
+      // 再生終了済みの音はそのままにする。
+    }
+  }
+  sound.activeEffects.clear();
+  for (const audio of sound.fallbackEffects.values()) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+}
+
+function setSoundEnabled(enabled) {
+  sound.enabled = enabled;
+  elements.bgmAudio.muted = !enabled;
+  for (const audio of sound.fallbackEffects.values()) audio.muted = !enabled;
+  updateSoundButton();
+  if (!enabled) {
+    elements.bgmAudio.pause();
+    if (sound.bgmGain) sound.bgmGain.gain.value = 0;
+    stopEffects();
+  } else {
+    if (sound.context) {
+      void sound.context.resume().catch((error) => console.warn("音声出力を開始できませんでした", error));
+    }
+    if (sound.phase === "setup") playBgm("setup");
+    else if (sound.phase === "intro") playBgm("battle", { silent: true });
+    else if (sound.phase === "battle") playBgm("battle");
+  }
+}
+
+function clearIntroSoundTimers() {
+  for (const timer of sound.introTimers) clearTimeout(timer);
+  sound.introTimers = [];
+}
 
 function emptyField() {
   return { S: null, V: null, O1: null, X: null };
@@ -394,7 +580,10 @@ function startGame() {
   clearTimeout(state.completionTimer);
   hideMatchIntro();
   clearTimeout(state.endSequenceTimer);
+  clearTimeout(state.endSoundTimer);
   state.endSequenceTimer = null;
+  state.endSoundTimer = null;
+  stopEffects();
   elements.endCurtain.classList.add("is-hidden");
   elements.endCurtain.classList.remove("is-active");
   elements.endCurtain.setAttribute("aria-hidden", "true");
@@ -458,7 +647,10 @@ function returnToSetup() {
   clearTimeout(state.completionTimer);
   hideMatchIntro();
   clearTimeout(state.endSequenceTimer);
+  clearTimeout(state.endSoundTimer);
   state.endSequenceTimer = null;
+  state.endSoundTimer = null;
+  stopEffects();
   state.gameStarted = false;
   state.gameOver = false;
   state.busy = false;
@@ -481,10 +673,13 @@ function returnToSetup() {
   elements.restartButton.classList.add("is-hidden");
   elements.toastRegion.replaceChildren();
   document.body.classList.remove("is-game-active");
+  sound.phase = "setup";
+  if (sound.enabled) playBgm("setup", { restart: true });
 }
 
 function hideMatchIntro() {
   clearTimeout(state.matchIntroTimer);
+  clearIntroSoundTimers();
   state.matchIntroTimer = null;
   elements.matchIntro.classList.remove("is-active");
   elements.matchIntro.classList.add("is-hidden");
@@ -496,10 +691,21 @@ function showMatchIntro() {
   elements.matchIntro.setAttribute("aria-hidden", "false");
   void elements.matchIntro.offsetWidth;
   elements.matchIntro.classList.add("is-active");
-  const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 120 : MATCH_INTRO_MS;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  sound.phase = "intro";
+  if (sound.enabled) playBgm("battle", { silent: true, restart: true });
+  sound.introTimers.push(window.setTimeout(() => {
+    if (sound.phase === "intro") playEffect("introPrelude");
+  }, reducedMotion ? 0 : MATCH_INTRO_PRELUDE_SOUND_MS));
+  sound.introTimers.push(window.setTimeout(() => {
+    if (sound.phase === "intro") playEffect("introCharge");
+  }, reducedMotion ? 45 : MATCH_INTRO_CHARGE_SOUND_MS));
+  const duration = reducedMotion ? 120 : MATCH_INTRO_MS;
   state.matchIntroTimer = window.setTimeout(() => {
     hideMatchIntro();
     if (!state.gameStarted || state.gameOver) return;
+    sound.phase = "battle";
+    if (sound.enabled) playBgm("battle", { restart: true });
     state.busy = false;
     startHumanTurnClock();
     render();
@@ -906,6 +1112,7 @@ function beginCompletionSequence(entry) {
   elements.tableArea.classList.remove("is-complete-flash");
   void elements.tableArea.offsetWidth;
   elements.tableArea.classList.add("is-complete-flash");
+  playEffect("completion");
   state.completionRevealTimer = window.setTimeout(() => {
     elements.tableArea.classList.remove("is-complete-flash");
     if (state.pendingCompletion === entry && state.gameStarted) showCompletion(entry);
@@ -926,7 +1133,7 @@ function showCompletion(entry) {
     .map(
       (analysis) => `
         <div class="completion-translation">
-          <strong>${escapeHtml(completedPatternLabel(analysis.pattern))}</strong>
+          <strong>訳</strong>
           <span>${escapeHtml(analysis.translation)}</span>
         </div>
       `,
@@ -1037,6 +1244,7 @@ async function applyMisplayPenalty() {
   elements.tableArea.classList.remove("is-misplay-flash");
   void elements.tableArea.offsetWidth;
   elements.tableArea.classList.add("is-misplay-flash");
+  playEffect("misplay");
   const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 80 : MISPLAY_CUT_IN_MS;
   await new Promise((resolve) => window.setTimeout(resolve, duration));
   elements.tableArea.classList.remove("is-misplay-flash");
@@ -1230,7 +1438,14 @@ function finishGame() {
   state.busy = false;
   state.gameOver = true;
   render();
-  renderResult();
+  const rankKey = renderResult();
+  sound.phase = "ending";
+  elements.bgmAudio.pause();
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  state.endSoundTimer = window.setTimeout(() => {
+    state.endSoundTimer = null;
+    if (sound.phase === "ending") playEffect("end");
+  }, reducedMotion ? 0 : END_STAMP_SOUND_MS);
   elements.endCurtain.classList.remove("is-hidden");
   elements.endCurtain.setAttribute("aria-hidden", "false");
   void elements.endCurtain.offsetWidth;
@@ -1240,7 +1455,9 @@ function finishGame() {
     elements.endCurtain.classList.add("is-hidden");
     elements.endCurtain.setAttribute("aria-hidden", "true");
     state.endSequenceTimer = null;
+    sound.phase = "result";
     openModal(elements.resultModal);
+    playEffect(`rank-${rankKey}`);
   }, END_CURTAIN_DURATION_MS);
 }
 
@@ -1580,6 +1797,7 @@ function renderResult() {
         })
         .join("")
     : '<li class="result-sentence-item"><span>今回は完成した英文がありませんでした。</span></li>';
+  return scoreTitle.key;
 }
 
 function showDrawToast(card) {
@@ -1806,6 +2024,7 @@ elements.cpuDifficultyButtons.forEach((button) => {
 });
 
 elements.startButton.addEventListener("click", startGame);
+elements.soundButton.addEventListener("click", () => setSoundEnabled(!sound.enabled));
 elements.themeButton.addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
@@ -1828,5 +2047,11 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeModal(elements.rulesModal);
 });
 
+document.addEventListener("click", (event) => {
+  const button = event.target instanceof Element ? event.target.closest("button") : null;
+  if (button && !button.disabled) playEffect("click");
+});
+
 applyTheme(savedTheme());
+updateSoundButton();
 runSelfChecks();

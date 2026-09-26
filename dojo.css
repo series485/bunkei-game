@@ -23,6 +23,7 @@
   --shadow: 0 12px 30px rgba(0, 0, 0, 0.26);
   --soft-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
   --icon-filter: invert(1);
+  --falling-pattern-color: #8dc8a6;
   font-family: Inter, "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", sans-serif;
 }
 
@@ -47,6 +48,7 @@ html[data-theme="light"] {
   --shadow: 0 12px 28px rgba(73, 59, 39, 0.13);
   --soft-shadow: 0 5px 12px rgba(73, 59, 39, 0.12);
   --icon-filter: none;
+  --falling-pattern-color: #24563f;
 }
 
 * {
@@ -208,6 +210,11 @@ html[data-theme="light"] .button-ghost {
   background-color: #fffefd;
 }
 
+.sound-toggle[aria-pressed="true"] {
+  border-color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green), var(--soft-shadow);
+}
+
 .button-primary,
 .button-draw {
   border-color: var(--green-dark);
@@ -238,28 +245,64 @@ html[data-theme="light"] .button-ghost {
   box-shadow: var(--shadow);
 }
 
+.setup-stage {
+  position: relative;
+  min-height: calc(100dvh - 96px);
+  padding: 52px 12px 74px;
+  isolation: isolate;
+}
+
+.setup-pattern-rain {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.falling-pattern {
+  position: absolute;
+  top: -12%;
+  left: var(--x);
+  color: var(--falling-pattern-color);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  filter: blur(var(--pattern-blur, 0px));
+  animation: setupPatternFall var(--duration) linear var(--delay) infinite;
+}
+
+.depth-near {
+  --pattern-opacity: 0.3;
+  font-size: clamp(2.1rem, 4vw, 3.5rem);
+}
+
+.depth-mid {
+  --pattern-opacity: 0.22;
+  --pattern-blur: 0.4px;
+  font-size: clamp(1.5rem, 2.7vw, 2.4rem);
+}
+
+.depth-far {
+  --pattern-opacity: 0.14;
+  --pattern-blur: 1px;
+  font-size: clamp(1rem, 1.7vw, 1.5rem);
+}
+
 .setup-card {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
   gap: clamp(28px, 6vw, 70px);
+  width: min(100%, 920px);
   min-height: 430px;
+  margin: 0 auto;
   padding: clamp(30px, 6vw, 68px);
   overflow: hidden;
   border-radius: 14px;
-}
-
-.setup-card::before {
-  content: "道";
-  position: absolute;
-  right: 6%;
-  bottom: -0.1em;
-  color: rgba(61, 118, 90, 0.1);
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
-  font-size: clamp(7rem, 18vw, 12rem);
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: none;
 }
 
 .setup-copy,
@@ -275,7 +318,7 @@ html[data-theme="light"] .button-ghost {
 .setup-copy h2 {
   max-width: 640px;
   margin-bottom: 18px;
-  font-size: clamp(2rem, 5vw, 3.8rem);
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
   line-height: 1.12;
 }
 
@@ -1258,7 +1301,7 @@ html[data-theme="light"] .match-intro strong {
 .modal,
 .completion-card {
   position: relative;
-  width: min(94vw, 620px);
+  width: min(100%, 620px);
   max-height: calc(100dvh - 36px);
   padding: clamp(24px, 5vw, 38px);
   overflow-y: auto;
@@ -1488,19 +1531,21 @@ html[data-theme="light"] .match-intro strong {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
-  margin: 14px 0 10px;
+  gap: 8px;
+  margin: 0 0 18px;
 }
 
 .completion-pattern-chip {
-  padding: 4px 8px;
+  display: inline-block;
+  padding: 8px 16px;
   border: 1px solid var(--green-dark);
-  border-radius: 4px;
+  border-radius: 7px;
   color: #ffffff;
   background-color: var(--green);
-  font-size: 0.68rem;
+  font-size: clamp(1.5rem, 4.5vw, 2.1rem);
   font-weight: 900;
-  letter-spacing: 0.04em;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
 }
 
 .completion-english {
@@ -1528,11 +1573,11 @@ html[data-theme="light"] .match-intro strong {
 }
 
 .completion-translation strong {
-  padding: 3px 6px;
+  padding: 4px 8px;
   border-radius: 4px;
   color: #ffffff;
   background-color: var(--green);
-  font-size: 0.61rem;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
@@ -1737,6 +1782,21 @@ html[data-theme="light"] .match-intro strong {
   display: none !important;
 }
 
+@keyframes setupPatternFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -80px, 0) rotate(-7deg);
+  }
+  12%,
+  85% {
+    opacity: var(--pattern-opacity);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), calc(130vh + 160px), 0) rotate(7deg);
+  }
+}
+
 @keyframes turnFrameGlow {
   0%,
   100% {
@@ -1902,6 +1962,11 @@ html[data-theme="light"] .match-intro strong {
     font-size: 1.8rem;
   }
 
+  .setup-stage {
+    min-height: calc(100dvh - 80px);
+    padding: 38px 8px 58px;
+  }
+
   .setup-card {
     grid-template-columns: 1fr;
     gap: 24px;
@@ -2063,6 +2128,11 @@ html[data-theme="light"] .match-intro strong {
   .header-actions .button-icon {
     width: 12px;
     height: 12px;
+  }
+
+  .sound-toggle #soundLabel,
+  #restartButton span {
+    display: none;
   }
 
   .game-screen {
@@ -2234,6 +2304,11 @@ html[data-theme="light"] .match-intro strong {
   .header-actions .button-icon {
     display: none;
   }
+
+  .header-actions .sound-toggle .button-icon,
+  .header-actions #restartButton .button-icon {
+    display: block;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2242,7 +2317,15 @@ html[data-theme="light"] .match-intro strong {
   *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .falling-pattern {
+    top: var(--rest-y);
+    opacity: var(--pattern-opacity);
+    animation: none !important;
+    transform: none;
   }
 }
