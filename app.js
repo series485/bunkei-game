@@ -238,6 +238,7 @@ function buildDeck() {
       person: 1,
       isPronoun: true,
       forms: { subject: "I", object: "me", reflexive: "myself" },
+      copies: 2,
     }),
     noun({
       label: "you",
@@ -1620,7 +1621,7 @@ function runSelfChecks() {
   const loveCard = findOne("love");
   const runCard = findOne("run");
   const studentsCard = findOne("the students");
-  const iCard = findOne("I");
+  const [iSubject, iObject] = findAll("I");
   const tomCard = findOne("Tom");
   const quietCard = findOne("quiet");
   const becomeCard = findOne("become");
@@ -1634,7 +1635,13 @@ function runSelfChecks() {
     O1: { card: stationObject },
   };
   const pluralField = { ...emptyField(), S: { card: studentsCard }, V: { card: loveCard } };
-  const objectiveField = { ...emptyField(), S: { card: tomCard }, O1: { card: iCard } };
+  const objectiveField = { ...emptyField(), S: { card: tomCard }, O1: { card: iObject } };
+  const iReflexiveField = {
+    ...emptyField(),
+    S: { card: iSubject },
+    V: { card: loveCard },
+    O1: { card: iObject },
+  };
   const svcField = {
     ...emptyField(),
     S: { card: tomCard },
@@ -1700,7 +1707,8 @@ function runSelfChecks() {
     [nounSurface(stationObject, "O1", reflexiveField, "SVO") === "itself", "再帰代名詞への変化"],
     [verbSurface(loveCard, reflexiveField) === "loves", "三人称単数現在"],
     [verbSurface(loveCard, pluralField) === "love", "複数主語の現在形"],
-    [nounSurface(iCard, "O1", objectiveField, "SVO") === "me", "目的格への変化"],
+    [nounSurface(iObject, "O1", objectiveField, "SVO") === "me", "目的格への変化"],
+    [iSubject.id !== iObject.id && nounSurface(iObject, "O1", iReflexiveField, "SVO") === "myself", "Iの再帰代名詞"],
     [sentenceText(reflexiveField, "SVO") === "The station loves itself.", "英文の空白"],
     [JSON.stringify(getCompletedPatterns(svcField)) === JSON.stringify(["SVC"]), "O/CのSVC判定"],
     [sentenceText(svcField, "SVC") === "Tom becomes quiet.", "O/CでのSVC完成"],
@@ -1713,8 +1721,8 @@ function runSelfChecks() {
     [getCompletedPatterns(ambiguousField).length === 2, "O2/Cの二重解釈"],
     [JSON.stringify(getCandidatePatterns(adjectiveField)) === JSON.stringify(["SVOC"]), "形容詞によるSVOC確定"],
     [Math.max(...PATTERN_ORDER.map((pattern) => focusCounts[pattern])) - Math.min(...PATTERN_ORDER.map((pattern) => focusCounts[pattern])) <= 1, "5文型の動詞枚数バランス"],
-    [typeCounts.noun === 49 && typeCounts.adjective === 20 && typeCounts.verb === 27, "品詞別カード配分"],
-    [buildDeck().length === 96, "デッキ枚数"],
+    [typeCounts.noun === 50 && typeCounts.adjective === 20 && typeCounts.verb === 27, "品詞別カード配分"],
+    [buildDeck().length === 97, "デッキ枚数"],
     [!allActivePlayersPassed(2, 3) && allActivePlayersPassed(3, 3), "全員パス時の場流し"],
     [COMPLETION_CUT_IN_MS === 4000, "完成カットイン4秒"],
     [COMPLETION_REVEAL_DELAY_MS <= 800 && Boolean(elements.completionBurst), "軽量な完成前演出"],

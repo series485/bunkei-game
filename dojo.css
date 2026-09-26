@@ -1297,48 +1297,191 @@ html[data-theme="light"] .match-intro strong {
   filter: var(--icon-filter);
 }
 
+.rules-modal {
+  width: min(100%, 700px);
+}
+
+.rules-modal > h2 {
+  margin-bottom: 20px;
+  padding-right: 40px;
+}
+
+.rules-section + .rules-section {
+  margin-top: 24px;
+}
+
+.rules-section-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.rules-section-title::before {
+  width: 5px;
+  height: 1.1em;
+  border-radius: 3px;
+  background-color: var(--green);
+  content: "";
+}
+
+.rules-other {
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
 .rules-list {
-  padding-left: 1.35rem;
-  color: var(--muted);
-  line-height: 1.65;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.rules-list li + li {
-  margin-top: 7px;
+.rules-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.04);
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
-.rules-list li::marker {
-  color: var(--green);
+.rules-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #ffffff;
+  background-color: var(--green);
+  font-size: 0.75rem;
   font-weight: 900;
 }
 
-.rules-example,
+.rules-detail {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.rules-detail + .rules-detail {
+  margin-top: 12px;
+}
+
+.rules-detail h4 {
+  margin: 0 0 7px;
+  font-size: 0.96rem;
+}
+
+.rules-detail p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.rules-form-examples {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rules-form-examples li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background-color: var(--panel-soft);
+}
+
+.rules-form-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.rules-form-pair > span {
+  color: var(--muted);
+}
+
+.rules-form-pair strong {
+  color: var(--green);
+  font-size: 1.05rem;
+}
+
+.rules-form-context {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.rules-rank-table {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  border-spacing: 0;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.rules-rank-table th,
+.rules-rank-table td {
+  padding: 9px 11px;
+}
+
+.rules-rank-table thead th {
+  color: #ffffff;
+  background-color: var(--green);
+  font-size: 0.77rem;
+  text-align: left;
+}
+
+.rules-rank-table tbody tr:nth-child(odd) {
+  background-color: rgba(255, 255, 255, 0.055);
+}
+
+.rules-rank-table tbody tr + tr > * {
+  border-top: 1px solid var(--line);
+}
+
+.rules-rank-table tbody th {
+  font-weight: 800;
+  text-align: left;
+}
+
+.rules-rank-table tbody td {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rules-detail .rules-score-note {
+  margin-top: 9px;
+  font-size: 0.76rem;
+}
+
 .completion-translation {
   border: 1px solid var(--line);
   border-radius: 8px;
   background-color: rgba(255, 255, 255, 0.06);
-}
-
-.rules-example {
-  display: grid;
-  gap: 5px;
-  padding: 14px;
-}
-
-.rules-example span {
-  color: var(--green);
-  font-size: 0.68rem;
-  font-weight: 900;
-}
-
-.rules-example strong {
-  font-family: Georgia, serif;
-  font-size: 1.08rem;
-}
-
-.rules-example small {
-  color: var(--muted);
-  line-height: 1.45;
 }
 
 .completion-patterns {
@@ -1861,6 +2004,23 @@ html[data-theme="light"] .match-intro strong {
 }
 
 @media (max-width: 520px) {
+  .rules-modal {
+    padding: 22px 15px;
+  }
+
+  .rules-detail {
+    padding: 12px;
+  }
+
+  .rules-rank-table th,
+  .rules-rank-table td {
+    padding: 8px 7px;
+  }
+
+  .rules-rank-table tbody th {
+    white-space: nowrap;
+  }
+
   .app-shell {
     width: calc(100% - 12px);
     padding-top: 6px;

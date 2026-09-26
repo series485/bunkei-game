@@ -9,7 +9,7 @@
     />
     <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="dojo.css?v=20260924-2" />
+    <link rel="stylesheet" href="dojo.css?v=20260926-1" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -120,22 +120,47 @@
           <img src="assets/icons/x.svg" alt="" aria-hidden="true" />
         </button>
         <h2 id="rulesTitle">遊び方</h2>
-        <ol class="rules-list">
-          <li>自分の番では、手札を置けると思うスロットへドラッグ＆ドロップします。タップ操作も使えます。</li>
-          <li>左から3番目の枠はO/C、4番目の枠はO₂/Cの共用です。動詞や置いたカードによって役割が変化します。</li>
-          <li>置けない場所へ出すと「おてつき」です。山札から1枚引き、その手番は終了します。</li>
-          <li>出せないと思ったときは、手元の「山札からとる」で1枚だけ引きます。</li>
-          <li>必要なスロットが全部埋まると英文完成。使ったカードは流れます。</li>
-          <li>引いたカードも出せなければパス。残っている全員が連続でパスすると、場のカードが流れます。</li>
-          <li>同じ存在が主語と目的語になった場合、目的語は自動的に再帰代名詞へ変わります。</li>
-          <li>手札を先になくした順に上がり。最後の1人まで順位を決めます。</li>
-          <li>リザルトのスコアは、順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数で決まります。文型師範は14,500点以上で、ハードモードのみ到達できます。</li>
-        </ol>
-        <div class="rules-example">
-          <span>例</span>
-          <strong>The station loves itself.</strong>
-          <small>同じthe stationがSとOに置かれたため、Oがitselfへ変化</small>
-        </div>
+        <section class="rules-section" aria-labelledby="rulesPlayTitle">
+          <h3 id="rulesPlayTitle" class="rules-section-title">プレイの流れ</h3>
+          <ol class="rules-list" role="list">
+            <li><span class="rules-number" aria-hidden="true">1</span><span>自分の番では、手札を置けると思うスロットへドラッグ＆ドロップします。タップ操作も使えます。</span></li>
+            <li><span class="rules-number" aria-hidden="true">2</span><span>左から3番目の枠はO/C、4番目の枠はO₂/Cの共用です。動詞や置いたカードによって役割が変化します。</span></li>
+            <li><span class="rules-number" aria-hidden="true">3</span><span>置けない場所へ出すと「おてつき」です。山札から1枚引き、その手番は終了します。</span></li>
+            <li><span class="rules-number" aria-hidden="true">4</span><span>出せないと思ったときは、手元の「山札からとる」で1枚だけ引きます。</span></li>
+            <li><span class="rules-number" aria-hidden="true">5</span><span>必要なスロットが全部埋まると英文完成。使ったカードは流れます。</span></li>
+            <li><span class="rules-number" aria-hidden="true">6</span><span>引いたカードも出せなければパス。残っている全員が連続でパスすると、場のカードが流れます。</span></li>
+            <li><span class="rules-number" aria-hidden="true">7</span><span>手札を先になくした順に上がり。最後の1人まで順位を決めます。</span></li>
+          </ol>
+        </section>
+
+        <section class="rules-section rules-other" aria-labelledby="rulesOtherTitle">
+          <h3 id="rulesOtherTitle" class="rules-section-title">その他</h3>
+          <div class="rules-detail">
+            <h4>カードの形は自動で変化</h4>
+            <p>手札では代名詞を主格、動詞を原形で表示します。場に置くと、その役割や主語に合わせて形が変わります。</p>
+            <ul class="rules-form-examples">
+              <li><span class="rules-form-pair">we <span aria-hidden="true">→</span> <strong>us</strong></span><span class="rules-form-context">目的語（O）に置く</span></li>
+              <li><span class="rules-form-pair">I <span aria-hidden="true">→</span> <strong>myself</strong></span><span class="rules-form-context">SとOに同じIを置くと、Oが変化</span></li>
+              <li><span class="rules-form-pair">love <span aria-hidden="true">→</span> <strong>loves</strong></span><span class="rules-form-context">主語がthe catのときVに置く</span></li>
+            </ul>
+          </div>
+          <div class="rules-detail">
+            <h4>スコアと称号</h4>
+            <p>順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数でスコアが決まります。</p>
+            <table class="rules-rank-table" aria-label="称号と必要な点数">
+              <thead>
+                <tr><th scope="col">称号</th><th scope="col">点数</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">文型師範</th><td>14,500点以上</td></tr>
+                <tr><th scope="row">文型師匠</th><td>10,000〜14,499点</td></tr>
+                <tr><th scope="row">文型弟子</th><td>6,000〜9,999点</td></tr>
+                <tr><th scope="row">文型見習い</th><td>0〜5,999点</td></tr>
+              </tbody>
+            </table>
+            <p class="rules-score-note">文型師範はハードモードでのみ到達できます。</p>
+          </div>
+        </section>
       </section>
     </div>
 
@@ -185,6 +210,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=20260924-2"></script>
+    <script src="app.js?v=20260926-1"></script>
   </body>
 </html>
