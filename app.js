@@ -386,6 +386,131 @@ function adjective(label, gloss, jpPredicate, jpAdverbial, jpBeforeMama = jpPred
   };
 }
 
+const VERB_DRAW_QUOTAS = Object.freeze({ SV: 6, SVC: 5, SVO: 7, SVOO: 5, SVOC: 4 });
+
+const VERB_POOL = [
+  // 主役の文型ごとに抽選し、各対戦では27語を使用する。
+  verb("run", "runs", "走る／Oを経営する／Cになる", ["SV", "SVC", "SVO"], { SVC: ["adjective"] }),
+  verb("sleep", "sleeps", "眠る", ["SV"]),
+  verb("arrive", "arrives", "到着する", ["SV"]),
+  verb("laugh", "laughs", "笑う", ["SV"]),
+  verb("swim", "swims", "泳ぐ", ["SV"]),
+  verb("cry", "cries", "泣く", ["SV"]),
+  verb("dance", "dances", "踊る", ["SV"]),
+  verb("jump", "jumps", "跳ぶ", ["SV"]),
+  verb("listen", "listens", "耳を傾ける", ["SV"]),
+  verb("live", "lives", "暮らす", ["SV"]),
+  verb("play", "plays", "遊ぶ", ["SV"]),
+  verb("sit", "sits", "座る", ["SV"]),
+  verb("smile", "smiles", "ほほえむ", ["SV"]),
+  verb("stand", "stands", "立つ", ["SV"]),
+  verb("wait", "waits", "待つ", ["SV"]),
+  verb("walk", "walks", "歩く", ["SV"]),
+  verb("work", "works", "働く", ["SV"]),
+  verb("sing", "sings", "歌う", ["SV"]),
+  verb("move", "moves", "動く／Oを動かす", ["SV", "SVO"]),
+
+  verb("be", "is", "〜である・いる", ["SVC"], { SVC: ["adjective", "noun"] }),
+  verb("become", "becomes", "〜になる", ["SVC"], { SVC: ["adjective", "noun"] }),
+  verb("look", "looks", "〜に見える", ["SVC"], { SVC: ["adjective"] }),
+  verb("feel", "feels", "〜に感じられる", ["SVC"], { SVC: ["adjective"] }),
+  verb("turn", "turns", "〜になる", ["SVC"], { SVC: ["adjective"] }),
+  verb("get", "gets", "〜になる", ["SVC"], { SVC: ["adjective"] }),
+  verb("go", "goes", "行く／Cになる", ["SV", "SVC"], { SVC: ["adjective"] }, "SVC"),
+  verb("grow", "grows", "育つ／Cになる", ["SV", "SVC"], { SVC: ["adjective"] }, "SVC"),
+  verb("seem", "seems", "〜のように見える", ["SVC"], { SVC: ["adjective"] }),
+  verb("sound", "sounds", "〜のように聞こえる", ["SVC"], { SVC: ["adjective"] }),
+  verb("stay", "stays", "とどまる／Cのままでいる", ["SV", "SVC"], { SVC: ["adjective"] }, "SVC"),
+
+  verb("love", "loves", "〜を愛する", ["SVO"]),
+  verb("like", "likes", "〜を好む", ["SVO"]),
+  verb("use", "uses", "〜を使う", ["SVO"]),
+  verb("open", "opens", "開く／Oを開ける", ["SV", "SVO"], {}, "SVO"),
+  verb("visit", "visits", "〜を訪れる", ["SVO"]),
+  verb("watch", "watches", "〜を見る", ["SVO"]),
+  verb("break", "breaks", "壊れる／Oを壊す", ["SV", "SVO"], {}, "SVO"),
+  verb("carry", "carries", "〜を運ぶ", ["SVO"]),
+  verb("catch", "catches", "〜を捕まえる", ["SVO"]),
+  verb("clean", "cleans", "掃除する／Oを掃除する", ["SV", "SVO"], {}, "SVO"),
+  verb("close", "closes", "閉まる／Oを閉める", ["SV", "SVO"], {}, "SVO"),
+  verb("draw", "draws", "描く／Oを描く", ["SV", "SVO"], {}, "SVO"),
+  verb("eat", "eats", "食べる／Oを食べる", ["SV", "SVO"], {}, "SVO"),
+  verb("fix", "fixes", "〜を修理する", ["SVO"]),
+  verb("hear", "hears", "〜を聞く", ["SVO"]),
+  verb("hold", "holds", "〜を持つ", ["SVO"]),
+  verb("know", "knows", "〜を知っている", ["SVO"]),
+  verb("meet", "meets", "〜に会う", ["SVO"]),
+  verb("need", "needs", "〜を必要とする", ["SVO"]),
+  verb("read", "reads", "読む／Oを読む", ["SV", "SVO"], {}, "SVO"),
+  verb("remember", "remembers", "〜を覚えている", ["SVO"]),
+  verb("see", "sees", "〜を見る", ["SVO"]),
+  verb("study", "studies", "勉強する／Oを勉強する", ["SV", "SVO"], {}, "SVO"),
+  verb("take", "takes", "〜を取る", ["SVO"]),
+  verb("want", "wants", "〜をほしいと思う", ["SVO"]),
+  verb("write", "writes", "書く／Oを書く", ["SV", "SVO"], {}, "SVO"),
+  verb("push", "pushes", "〜を押す", ["SVO"]),
+  verb("pull", "pulls", "〜を引く", ["SVO"]),
+  verb("choose", "chooses", "〜を選ぶ", ["SVO"]),
+
+  verb("give", "gives", "OにO₂を与える", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("show", "shows", "OにO₂を見せる", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("teach", "teaches", "OにO₂を教える", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("tell", "tells", "OにO₂を伝える", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("buy", "buys", "OにO₂を買う", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("bring", "brings", "OにO₂を持ってくる", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("hand", "hands", "OにO₂を手渡す", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("lend", "lends", "OにO₂を貸す", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("pass", "passes", "OにO₂を渡す", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("sell", "sells", "OにO₂を売る", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("send", "sends", "OにO₂を送る", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("order", "orders", "OにO₂を注文する", ["SVO", "SVOO"], {}, "SVOO"),
+  verb("save", "saves", "OのためにO₂を取っておく", ["SVO", "SVOO"], {}, "SVOO"),
+
+  verb("keep", "keeps", "保つ／OをCのままにする", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
+  verb("make", "makes", "作る／OにO₂を作る／OをCにする", ["SVO", "SVOO", "SVOC"], { SVOC: ["adjective", "noun", "verb"] }, "SVOC"),
+  verb("call", "calls", "呼ぶ／OをCと呼ぶ", ["SVO", "SVOC"], { SVOC: ["noun"] }, "SVOC"),
+  verb("name", "names", "名づける／OをCと名づける", ["SVO", "SVOC"], { SVOC: ["noun"] }, "SVOC"),
+  verb("find", "finds", "見つける／OがCだと分かる", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
+  verb("leave", "leaves", "残す／OをCのままにしておく", ["SVO", "SVOC"], { SVOC: ["adjective"] }, "SVOC"),
+  verb("let", "lets", "OがVするのを許す", ["SVOC"], { SVOC: ["verb"] }),
+  verb("help", "helps", "助ける／OがVするのを手伝う", ["SVO", "SVOC"], { SVOC: ["verb"] }, "SVOC"),
+  verb("have", "has", "持っている／OにVしてもらう", ["SVO", "SVOC"], { SVOC: ["verb"] }, "SVOC"),
+];
+
+function drawMatchVerbs() {
+  return PATTERN_ORDER.flatMap((pattern) => {
+    const candidates = shuffle(VERB_POOL.filter((card) => card.focusPattern === pattern));
+    if (pattern !== "SVOC") return candidates.slice(0, VERB_DRAW_QUOTAS[pattern]);
+
+    const chosen = [];
+    for (const complement of ["verb", "adjective", "noun"]) {
+      if (chosen.some((card) => card.complementTypes.SVOC?.includes(complement))) continue;
+      const card = candidates.find((candidate) =>
+        !chosen.includes(candidate) && candidate.complementTypes.SVOC?.includes(complement));
+      if (card) chosen.push(card);
+    }
+    return [...chosen, ...candidates.filter((card) => !chosen.includes(card))]
+      .slice(0, VERB_DRAW_QUOTAS[pattern]);
+  });
+}
+
+function renderVerbCatalog() {
+  const body = document.querySelector("#verbCatalogBody");
+  document.querySelector("#verbCatalogCount").textContent = `全${VERB_POOL.length}語`;
+  body.replaceChildren(...[...VERB_POOL]
+    .sort((left, right) => left.lemma.localeCompare(right.lemma, "en"))
+    .map((card) => {
+      const row = document.createElement("tr");
+      const word = document.createElement("th");
+      const patterns = document.createElement("td");
+      word.scope = "row";
+      word.textContent = card.lemma;
+      patterns.textContent = card.patterns.join(" / ");
+      row.append(word, patterns);
+      return row;
+    }));
+}
+
 function buildDeck() {
   let serial = 0;
   const nounDefinitions = [
@@ -489,45 +614,8 @@ function buildDeck() {
     adjective("strong", "強い", "強い", "強く", "強い"),
   ];
 
-  const verbDefinitions = [
-    // 各文型を主役にしたカードを5〜6枚ずつ収録。複数文型を取る動詞は併記する。
-    verb("run", "runs", "走る／Oを経営する／Cになる", ["SV", "SVC", "SVO"], {
-      SVC: ["adjective"],
-    }),
-    verb("sleep", "sleeps", "眠る", ["SV"]),
-    verb("arrive", "arrives", "到着する", ["SV"]),
-    verb("laugh", "laughs", "笑う", ["SV"]),
-    verb("swim", "swims", "泳ぐ", ["SV"]),
-
-    verb("be", "is", "〜である・いる", ["SVC"], { SVC: ["adjective", "noun"] }),
-    verb("become", "becomes", "〜になる", ["SVC"], { SVC: ["adjective", "noun"] }),
-    verb("look", "looks", "〜に見える", ["SVC"], { SVC: ["adjective"] }),
-    verb("feel", "feels", "〜に感じられる", ["SVC"], { SVC: ["adjective"] }),
-    verb("turn", "turns", "〜になる", ["SVC"], { SVC: ["adjective"] }),
-    verb("get", "gets", "〜になる", ["SVC"], { SVC: ["adjective"] }),
-
-    verb("love", "loves", "〜を愛する", ["SVO"]),
-    verb("like", "likes", "〜を好む", ["SVO"]),
-    verb("use", "uses", "〜を使う", ["SVO"]),
-    verb("open", "opens", "〜を開ける", ["SVO"]),
-    verb("visit", "visits", "〜を訪れる", ["SVO"]),
-    verb("watch", "watches", "〜を見る", ["SVO"]),
-
-    verb("give", "gives", "OにO₂を与える", ["SVO", "SVOO"], {}, "SVOO"),
-    verb("show", "shows", "OにO₂を見せる", ["SVO", "SVOO"], {}, "SVOO"),
-    verb("teach", "teaches", "OにO₂を教える", ["SVO", "SVOO"], {}, "SVOO"),
-    verb("tell", "tells", "OにO₂を伝える", ["SVO", "SVOO"], {}, "SVOO"),
-    verb("buy", "buys", "OにO₂を買う", ["SVO", "SVOO"], {}, "SVOO"),
-
-    verb("keep", "keeps", "保つ／OをCのままにする", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
-    verb("make", "makes", "作る／OにO₂を作る／OをCにする", ["SVO", "SVOO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
-    verb("call", "calls", "呼ぶ／OをCと呼ぶ", ["SVO", "SVOC"], { SVOC: ["noun"] }, "SVOC"),
-    verb("name", "names", "名づける／OをCと名づける", ["SVO", "SVOC"], { SVOC: ["noun"] }, "SVOC"),
-    verb("find", "finds", "見つける／OがCだと分かる", ["SVO", "SVOC"], { SVOC: ["adjective", "noun"] }, "SVOC"),
-  ];
-
   const cards = [];
-  for (const definition of [...nounDefinitions, ...adjectiveDefinitions, ...verbDefinitions]) {
+  for (const definition of [...nounDefinitions, ...adjectiveDefinitions, ...drawMatchVerbs()]) {
     const copies = definition.copies ?? 1;
     for (let copy = 0; copy < copies; copy += 1) {
       cards.push({ ...definition, id: `card-${serial++}` });
@@ -812,13 +900,14 @@ function drawCardFromStock() {
 }
 
 function complementType(card) {
-  return card?.type === "adjective" ? "adjective" : "noun";
+  return card?.type ?? null;
 }
 
 function isComplementAllowed(verbCard, pattern, card) {
   if (!card) return true;
   const accepted = verbCard.complementTypes?.[pattern] ?? [];
-  return accepted.includes(complementType(card));
+  return accepted.includes(complementType(card)) &&
+    (card.type !== "verb" || card.patterns.includes("SV"));
 }
 
 function getCandidatePatterns(field = state.field) {
@@ -835,6 +924,7 @@ function getCandidatePatterns(field = state.field) {
       if (!card) continue;
       const role = slot === "O1" ? definition.o1Role : definition.xRole;
       if (card.type === "adjective" && role !== "C") return false;
+      if (card.type === "verb" && (pattern !== "SVOC" || slot !== "X" || !card.patterns.includes("SV"))) return false;
       if (role === "C" && verbCard && !isComplementAllowed(verbCard, pattern, card)) return false;
     }
     return true;
@@ -875,7 +965,7 @@ function nounCanOccupy(card, slot, field) {
 }
 
 function possibleSlotsForCard(card) {
-  if (card.type === "verb") return ["V"];
+  if (card.type === "verb") return card.patterns.includes("SV") ? ["V", "X"] : ["V"];
   if (card.type === "adjective") return ["O1", "X"];
   return ["S", "O1", "X"];
 }
@@ -926,7 +1016,7 @@ function verbSurface(card, field = state.field) {
 function surfaceForSlot(slot, field = state.field, pattern = null) {
   const card = getPlacementCard(slot, field);
   if (!card) return "";
-  if (card.type === "verb") return verbSurface(card, field);
+  if (card.type === "verb") return slot === "X" ? card.lemma : verbSurface(card, field);
   if (card.type === "noun") return nounSurface(card, slot, field, pattern);
   return card.label;
 }
@@ -990,6 +1080,31 @@ function japaneseTranslation(pattern, field = state.field) {
     laugh: "笑う",
     cry: "泣く",
     swim: "泳ぐ",
+    dance: "踊る",
+    jump: "跳ぶ",
+    listen: "耳を傾ける",
+    live: "暮らす",
+    play: "遊ぶ",
+    sit: "座る",
+    smile: "ほほえむ",
+    stand: "立つ",
+    wait: "待つ",
+    walk: "歩く",
+    work: "働く",
+    sing: "歌う",
+    move: "動く",
+    go: "行く",
+    grow: "育つ",
+    stay: "とどまる",
+    open: "開く",
+    break: "壊れる",
+    clean: "掃除する",
+    close: "閉まる",
+    draw: "描く",
+    eat: "食べる",
+    read: "読む",
+    study: "勉強する",
+    write: "書く",
   };
   const svo = {
     run: "経営する",
@@ -1014,6 +1129,37 @@ function japaneseTranslation(pattern, field = state.field) {
     buy: "買う",
     name: "名づける",
     leave: "残す",
+    move: "動かす",
+    break: "壊す",
+    catch: "捕まえる",
+    clean: "掃除する",
+    close: "閉める",
+    draw: "描く",
+    eat: "食べる",
+    fix: "修理する",
+    have: "持っている",
+    hear: "聞く",
+    hold: "持つ",
+    know: "知っている",
+    meet: "会う",
+    need: "必要とする",
+    read: "読む",
+    remember: "覚えている",
+    see: "見る",
+    study: "勉強する",
+    take: "取る",
+    want: "ほしいと思う",
+    write: "書く",
+    push: "押す",
+    pull: "引く",
+    choose: "選ぶ",
+    bring: "持ってくる",
+    hand: "手渡す",
+    lend: "貸す",
+    pass: "渡す",
+    sell: "売る",
+    order: "注文する",
+    save: "取っておく",
   };
   const svoo = {
     give: "与える",
@@ -1023,23 +1169,61 @@ function japaneseTranslation(pattern, field = state.field) {
     send: "送る",
     buy: "買ってあげる",
     make: "作ってあげる",
+    bring: "持ってくる",
+    hand: "手渡す",
+    lend: "貸す",
+    pass: "渡す",
+    sell: "売る",
+    order: "注文してあげる",
+  };
+  const causative = {
+    run: ["を", "走らせる"], sleep: ["を", "眠らせる"], arrive: ["を", "到着させる"],
+    laugh: ["を", "笑わせる"], swim: ["を", "泳がせる"], cry: ["を", "泣かせる"],
+    dance: ["を", "踊らせる"], jump: ["を", "跳ばせる"], listen: ["に", "耳を傾けさせる"],
+    live: ["に", "暮らさせる"], play: ["を", "遊ばせる"], sit: ["を", "座らせる"],
+    smile: ["を", "ほほえませる"], stand: ["を", "立たせる"], wait: ["を", "待たせる"],
+    walk: ["を", "歩かせる"], work: ["を", "働かせる"], sing: ["を", "歌わせる"],
+    move: ["を", "動かす"], go: ["を", "行かせる"], grow: ["を", "育てる"],
+    stay: ["を", "とどまらせる"], open: ["を", "開ける"], break: ["を", "壊す"],
+    clean: ["に", "掃除させる"], close: ["を", "閉める"], draw: ["に", "描かせる"],
+    eat: ["に", "食べさせる"], read: ["に", "読ませる"], study: ["に", "勉強させる"],
+    write: ["に", "書かせる"],
   };
 
   if (pattern === "SV") return `${s}は${sv[lemma] ?? verbCard.gloss}。`;
-  if (pattern === "SVO") return `${s}は${o}を${svo[lemma] ?? verbCard.gloss.replace("〜を", "")}。`;
-  if (pattern === "SVOO") return `${s}は${o}に${x}を${svoo[lemma] ?? verbCard.gloss}。`;
+  if (pattern === "SVO") {
+    if (lemma === "meet") return `${s}は${o}に会う。`;
+    if (lemma === "want") return `${s}は${o}がほしいと思う。`;
+    return `${s}は${o}を${svo[lemma] ?? verbCard.gloss.replace("〜を", "")}。`;
+  }
+  if (pattern === "SVOO") {
+    if (lemma === "save") return `${s}は${o}のために${x}を取っておく。`;
+    return `${s}は${o}に${x}を${svoo[lemma] ?? verbCard.gloss}。`;
+  }
 
   if (pattern === "SVC") {
     if (lemma === "be") return `${s}は${japaneseComplement(oCard, "predicate")}。`;
-    if (["become", "turn", "get", "run"].includes(lemma)) {
+    if (["become", "turn", "get", "run", "go", "grow"].includes(lemma)) {
       return `${s}は${japaneseComplement(oCard, "adverbial")}なる。`;
     }
-    if (lemma === "look") return `${s}は${japaneseComplement(oCard, "adverbial")}見える。`;
+    if (lemma === "look" || lemma === "seem") return `${s}は${japaneseComplement(oCard, "adverbial")}見える。`;
     if (lemma === "feel") return `${s}は${japaneseComplement(oCard, "adverbial")}感じられる。`;
+    if (lemma === "sound") return `${s}は${japaneseComplement(oCard, "adverbial")}聞こえる。`;
+    if (lemma === "stay") return `${s}は${japaneseComplement(oCard, "mama")}ままでいる。`;
     return `${s}は${japaneseComplement(oCard, "predicate")}。`;
   }
 
   if (pattern === "SVOC") {
+    if (xCard?.type === "verb") {
+      const action = sv[xCard.lemma] ?? xCard.gloss.split("／")[0];
+      if (lemma === "make") {
+        const form = causative[xCard.lemma];
+        return form ? `${s}は${o}${form[0]}${form[1]}。` : `${s}は${o}が${action}ようにする。`;
+      }
+      if (lemma === "let") return `${s}は${o}が${action}のを許す。`;
+      if (lemma === "help") return `${s}は${o}が${action}のを手伝う。`;
+      if (lemma === "have") return `${s}は${o}に${action}よう頼む。`;
+    }
     if (lemma === "keep") return `${s}は${o}を${japaneseComplement(xCard, "mama")}ままにする。`;
     if (lemma === "make" || lemma === "get") {
       return `${s}は${o}を${japaneseComplement(xCard, "adverbial")}する。`;
@@ -1902,21 +2086,27 @@ function runSelfChecks() {
       patterns: row.querySelector("td")?.textContent.trim().split(/\s*\/\s*/),
     }))
     .sort((left, right) => left.lemma.localeCompare(right.lemma, "en"));
-  const actualVerbs = cards
-    .filter((card) => card.type === "verb")
+  const actualVerbs = VERB_POOL
     .map((card) => ({ lemma: card.lemma, patterns: card.patterns }))
     .sort((left, right) => left.lemma.localeCompare(right.lemma, "en"));
   const findAll = (label) => cards.filter((card) => card.label === label);
-  const findOne = (label) => cards.find((card) => card.label === label);
+  const findOne = (label) => cards.find((card) => card.label === label) ?? VERB_POOL.find((card) => card.label === label);
   const [stationSubject, stationObject] = findAll("the station");
   const loveCard = findOne("love");
   const runCard = findOne("run");
   const studentsCard = findOne("the students");
   const [iSubject, iObject] = findAll("I");
   const tomCard = findOne("Tom");
+  const kenCard = findOne("Ken");
   const quietCard = findOne("quiet");
   const becomeCard = findOne("become");
   const makeCard = findOne("make");
+  const letCard = findOne("let");
+  const helpCard = findOne("help");
+  const haveCard = findOne("have");
+  const cryCard = findOne("cry");
+  const eatCard = findOne("eat");
+  const chooseCard = findOne("choose");
   const doctorCard = findOne("a doctor");
 
   const reflexiveField = {
@@ -1958,9 +2148,17 @@ function runSelfChecks() {
     X: { card: doctorCard },
   };
   const adjectiveField = { ...ambiguousField, X: { card: quietCard } };
+  const causativeField = {
+    S: { card: iSubject },
+    V: { card: makeCard },
+    O1: { card: tomCard },
+    X: { card: cryCard },
+  };
+  const causativeBase = { ...causativeField, X: null };
   const focusCounts = cards
     .filter((card) => card.type === "verb")
     .reduce((counts, card) => ({ ...counts, [card.focusPattern]: (counts[card.focusPattern] ?? 0) + 1 }), {});
+  const sampledVerbDraws = Array.from({ length: 16 }, drawMatchVerbs);
   const typeCounts = cards.reduce(
     (counts, card) => ({ ...counts, [card.type]: (counts[card.type] ?? 0) + 1 }),
     {},
@@ -2024,6 +2222,9 @@ function runSelfChecks() {
 
   const checks = [
     [JSON.stringify(listedVerbs) === JSON.stringify(actualVerbs), "収録動詞一覧とカードデータの一致"],
+    [VERB_POOL.length === 81 && new Set(VERB_POOL.map((card) => card.lemma)).size === 81, "収録動詞81語の重複なし"],
+    [PATTERN_ORDER.every((pattern) =>
+      VERB_POOL.filter((card) => card.focusPattern === pattern).length >= VERB_DRAW_QUOTAS[pattern]), "文型別の抽選候補数"],
     [nounSurface(stationObject, "O1", reflexiveField, "SVO") === "itself", "再帰代名詞への変化"],
     [verbSurface(loveCard, reflexiveField) === "loves", "三人称単数現在"],
     [verbSurface(loveCard, pluralField) === "love", "複数主語の現在形"],
@@ -2040,9 +2241,44 @@ function runSelfChecks() {
     ],
     [getCompletedPatterns(ambiguousField).length === 2, "O2/Cの二重解釈"],
     [JSON.stringify(getCandidatePatterns(adjectiveField)) === JSON.stringify(["SVOC"]), "形容詞によるSVOC確定"],
-    [Math.max(...PATTERN_ORDER.map((pattern) => focusCounts[pattern])) - Math.min(...PATTERN_ORDER.map((pattern) => focusCounts[pattern])) <= 1, "5文型の動詞枚数バランス"],
+    [PATTERN_ORDER.every((pattern) => focusCounts[pattern] === VERB_DRAW_QUOTAS[pattern]), "5文型の動詞抽選枚数"],
+    [sampledVerbDraws.every((draw) =>
+      ["verb", "adjective", "noun"].every((type) =>
+        draw.some((card) => card.complementTypes.SVOC?.includes(type)))),
+    "各対戦にSVOCの動詞・形容詞・名詞補語を扱える動詞が入る"],
     [typeCounts.noun === 50 && typeCounts.adjective === 20 && typeCounts.verb === 27, "品詞別カード配分"],
     [buildDeck().length === 97, "デッキ枚数"],
+    [new Set(Array.from({ length: 8 }, () =>
+      buildDeck().filter((card) => card.type === "verb").map((card) => card.lemma).sort().join(","))).size > 1,
+    "対戦ごとに動詞が変わる"],
+    [JSON.stringify(getCompletedPatterns(causativeField)) === JSON.stringify(["SVOC"]) &&
+      sentenceText(causativeField, "SVOC") === "I make Tom cry." &&
+      surfaceForSlot("X", causativeField, "SVOC") === "cry" &&
+      japaneseTranslation("SVOC", causativeField) === "私はトムを泣かせる。",
+    "make O V原形のSVOC完成と和訳"],
+    [sentenceText({ S: { card: tomCard }, V: { card: makeCard }, O1: { card: kenCard }, X: { card: cryCard } }, "SVOC")
+      === "Tom makes Ken cry.", "三単現の主動詞と原形の補語動詞"],
+    [getLegalActionsForCard(cryCard, causativeBase).some((action) => action.slot === "X") &&
+      !getLegalActionsForCard(chooseCard, causativeBase).some((action) => action.slot === "X") &&
+      !getLegalActionsForCard(cryCard, { ...causativeBase, V: { card: findOne("keep") } })
+        .some((action) => action.slot === "X"),
+    "SV動詞だけを対応するSVOCのCに置ける"],
+    [getLegalActionsForCard(cryCard, { ...emptyField(), S: { card: iSubject }, V: { card: makeCard } })
+      .some((action) => action.slot === "X") &&
+      getLegalActionsForCard(tomCard, { ...causativeField, O1: null })
+        .some((action) => action.slot === "O1"),
+    "Cを先に置いてからOを置く実際の配置順"],
+    [[letCard, helpCard, haveCard].every((card) =>
+      JSON.stringify(getCompletedPatterns({ ...causativeField, V: { card } })) === JSON.stringify(["SVOC"])),
+    "let・help・have O V原形のSVOC判定"],
+    [eatCard.patterns.includes("SV") && eatCard.patterns.includes("SVO") &&
+      getLegalActionsForCard(eatCard, { ...emptyField(), S: { card: iSubject } })
+        .some((action) => action.slot === "V") &&
+      getCandidatePatterns({ ...emptyField(), S: { card: iSubject }, V: { card: eatCard }, O1: { card: doctorCard } })
+        .includes("SVO"),
+    "eatのSVと目的語を限定しないSVO"],
+    [!findOne("push").patterns.includes("SVOC") && !findOne("pull").patterns.includes("SVOC"),
+      "push・pullはSVOCを取らない"],
     [!allActivePlayersPassed(2, 3) && allActivePlayersPassed(3, 3), "全員パス時の場流し"],
     [
       shouldAutoPassHuman({ isHuman: true, rank: null }, 0, 0) &&
@@ -2183,4 +2419,5 @@ document.addEventListener("click", (event) => {
 
 applyTheme(savedTheme());
 updateSoundButton();
+renderVerbCatalog();
 runSelfChecks();

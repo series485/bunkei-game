@@ -9,7 +9,7 @@
     />
     <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="dojo.css?v=20260926-verbs-1" />
+    <link rel="stylesheet" href="dojo.css?v=20260926-verbs-2" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -185,43 +185,26 @@
             </ul>
           </div>
           <div class="rules-detail">
+            <h4>第五文型 SVOCの解釈について</h4>
+            <p>本ゲームにおいて、OとCが主述(主語と述語)の関係をつくるものを第五文型とみなすため、一部動詞については第五文型のCとなる位置に、第一文型をとる動詞を置くことを認めている。</p>
+            <ul class="rules-form-examples rules-svoc-examples">
+              <li><span class="rules-form-pair"><strong>I make Tom cry.</strong></span><span class="rules-form-context">Tom が cry（泣く）→ 私はトムを泣かせる。</span></li>
+              <li><span class="rules-form-pair"><strong>I let Tom sing.</strong></span><span class="rules-form-context">トムが歌うのを許す。</span></li>
+              <li><span class="rules-form-pair"><strong>I help Tom swim.</strong></span><span class="rules-form-context">トムが泳ぐのを手伝う。</span></li>
+              <li><span class="rules-form-pair"><strong>I have Tom wait.</strong></span><span class="rules-form-context">トムに待ってもらう。</span></li>
+            </ul>
+            <p class="rules-score-note">make・help・have でこの形を作るときは、Oより先にCを置くと第3文型として途中で完成しません。Cの動詞は原形のままです。</p>
+          </div>
+          <div class="rules-detail">
             <details id="verbCatalog" class="rules-verb-catalog">
-              <summary>収録動詞と文型 <span class="rules-verb-count">全27語</span></summary>
+              <summary>収録動詞と文型 <span id="verbCatalogCount" class="rules-verb-count">全81語</span></summary>
               <div class="rules-verb-content">
-                <p>動詞カードの原形と、このゲームで使える文型の一覧です。複数の文型を取る動詞はすべて載せています。SVからSVOCまで、それぞれ第1〜第5文型に対応します。</p>
+                <p>81語から毎回27語を抽選します（主役の文型ごとにSV 6語・SVC 5語・SVO 7語・SVOO 5語・SVOC 4語）。表には各動詞がこのゲームで使える文型をすべて載せています。SVからSVOCまで、それぞれ第1〜第5文型に対応します。</p>
                 <table class="rules-rank-table rules-verb-table" aria-label="収録動詞と取れる文型">
                   <thead>
                     <tr><th scope="col">動詞</th><th scope="col">取れる文型</th></tr>
                   </thead>
-                  <tbody id="verbCatalogBody">
-                    <tr><th scope="row">arrive</th><td>SV</td></tr>
-                    <tr><th scope="row">be</th><td>SVC</td></tr>
-                    <tr><th scope="row">become</th><td>SVC</td></tr>
-                    <tr><th scope="row">buy</th><td>SVO / SVOO</td></tr>
-                    <tr><th scope="row">call</th><td>SVO / SVOC</td></tr>
-                    <tr><th scope="row">feel</th><td>SVC</td></tr>
-                    <tr><th scope="row">find</th><td>SVO / SVOC</td></tr>
-                    <tr><th scope="row">get</th><td>SVC</td></tr>
-                    <tr><th scope="row">give</th><td>SVO / SVOO</td></tr>
-                    <tr><th scope="row">keep</th><td>SVO / SVOC</td></tr>
-                    <tr><th scope="row">laugh</th><td>SV</td></tr>
-                    <tr><th scope="row">like</th><td>SVO</td></tr>
-                    <tr><th scope="row">look</th><td>SVC</td></tr>
-                    <tr><th scope="row">love</th><td>SVO</td></tr>
-                    <tr><th scope="row">make</th><td>SVO / SVOO / SVOC</td></tr>
-                    <tr><th scope="row">name</th><td>SVO / SVOC</td></tr>
-                    <tr><th scope="row">open</th><td>SVO</td></tr>
-                    <tr><th scope="row">run</th><td>SV / SVC / SVO</td></tr>
-                    <tr><th scope="row">show</th><td>SVO / SVOO</td></tr>
-                    <tr><th scope="row">sleep</th><td>SV</td></tr>
-                    <tr><th scope="row">swim</th><td>SV</td></tr>
-                    <tr><th scope="row">teach</th><td>SVO / SVOO</td></tr>
-                    <tr><th scope="row">tell</th><td>SVO / SVOO</td></tr>
-                    <tr><th scope="row">turn</th><td>SVC</td></tr>
-                    <tr><th scope="row">use</th><td>SVO</td></tr>
-                    <tr><th scope="row">visit</th><td>SVO</td></tr>
-                    <tr><th scope="row">watch</th><td>SVO</td></tr>
-                  </tbody>
+                  <tbody id="verbCatalogBody"></tbody>
                 </table>
               </div>
             </details>
@@ -276,6 +259,6 @@
     </div>
 
     <audio id="bgmAudio" preload="none" loop muted></audio>
-    <script src="app.js?v=20260926-verbs-1"></script>
+    <script src="app.js?v=20260926-verbs-2"></script>
   </body>
 </html>
