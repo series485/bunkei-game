@@ -9,7 +9,7 @@
     />
     <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="dojo.css?v=20260926-visual-3" />
+    <link rel="stylesheet" href="dojo.css?v=20260926-verbs-1" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -159,6 +159,23 @@
         <section class="rules-section rules-other" aria-labelledby="rulesOtherTitle">
           <h3 id="rulesOtherTitle" class="rules-section-title">その他</h3>
           <div class="rules-detail">
+            <h4>スコアと称号</h4>
+            <p>順位・速さ・CPUレベル・CPU人数・終了時のCPUの残り札・おてつき回数でスコアが決まります。速さは手番中の合計時間を3割、1手番あたりの平均時間を10手番分に換算して7割で評価します。自動パスは手番数に含めません。おてつきは1回500点減点です。</p>
+            <p>CPUが2人でも3人でも人数ボーナスは300点。残り札ボーナスは、CPU全員の手札枚数の平均（小数点以下切り捨て）×50点です。先に上がったCPUは0枚として数えます。</p>
+            <table class="rules-rank-table" aria-label="称号と必要な点数">
+              <thead>
+                <tr><th scope="col">称号</th><th scope="col">点数</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">文型師範</th><td>14,200点以上</td></tr>
+                <tr><th scope="row">文型師匠</th><td>10,000〜14,199点</td></tr>
+                <tr><th scope="row">文型弟子</th><td>6,000〜9,999点</td></tr>
+                <tr><th scope="row">文型見習い</th><td>0〜5,999点</td></tr>
+              </tbody>
+            </table>
+            <p class="rules-score-note">ハードモードでは難易度ボーナスとして1,400点が加算されます。</p>
+          </div>
+          <div class="rules-detail">
             <h4>カードの形は自動で変化</h4>
             <p>手札では代名詞を主格、動詞を原形で表示します。場に置くと、その役割や主語に合わせて形が変わります。</p>
             <ul class="rules-form-examples">
@@ -168,20 +185,46 @@
             </ul>
           </div>
           <div class="rules-detail">
-            <h4>スコアと称号</h4>
-            <p>順位・手番中の合計時間・CPUレベル・CPU人数・おてつき回数でスコアが決まります。おてつきは1回につき500点減点です。</p>
-            <table class="rules-rank-table" aria-label="称号と必要な点数">
-              <thead>
-                <tr><th scope="col">称号</th><th scope="col">点数</th></tr>
-              </thead>
-              <tbody>
-                <tr><th scope="row">文型師範</th><td>14,500点以上</td></tr>
-                <tr><th scope="row">文型師匠</th><td>10,000〜14,499点</td></tr>
-                <tr><th scope="row">文型弟子</th><td>6,000〜9,999点</td></tr>
-                <tr><th scope="row">文型見習い</th><td>0〜5,999点</td></tr>
-              </tbody>
-            </table>
-            <p class="rules-score-note">文型師範はハードモードでのみ到達できます。</p>
+            <details id="verbCatalog" class="rules-verb-catalog">
+              <summary>収録動詞と文型 <span class="rules-verb-count">全27語</span></summary>
+              <div class="rules-verb-content">
+                <p>動詞カードの原形と、このゲームで使える文型の一覧です。複数の文型を取る動詞はすべて載せています。SVからSVOCまで、それぞれ第1〜第5文型に対応します。</p>
+                <table class="rules-rank-table rules-verb-table" aria-label="収録動詞と取れる文型">
+                  <thead>
+                    <tr><th scope="col">動詞</th><th scope="col">取れる文型</th></tr>
+                  </thead>
+                  <tbody id="verbCatalogBody">
+                    <tr><th scope="row">arrive</th><td>SV</td></tr>
+                    <tr><th scope="row">be</th><td>SVC</td></tr>
+                    <tr><th scope="row">become</th><td>SVC</td></tr>
+                    <tr><th scope="row">buy</th><td>SVO / SVOO</td></tr>
+                    <tr><th scope="row">call</th><td>SVO / SVOC</td></tr>
+                    <tr><th scope="row">feel</th><td>SVC</td></tr>
+                    <tr><th scope="row">find</th><td>SVO / SVOC</td></tr>
+                    <tr><th scope="row">get</th><td>SVC</td></tr>
+                    <tr><th scope="row">give</th><td>SVO / SVOO</td></tr>
+                    <tr><th scope="row">keep</th><td>SVO / SVOC</td></tr>
+                    <tr><th scope="row">laugh</th><td>SV</td></tr>
+                    <tr><th scope="row">like</th><td>SVO</td></tr>
+                    <tr><th scope="row">look</th><td>SVC</td></tr>
+                    <tr><th scope="row">love</th><td>SVO</td></tr>
+                    <tr><th scope="row">make</th><td>SVO / SVOO / SVOC</td></tr>
+                    <tr><th scope="row">name</th><td>SVO / SVOC</td></tr>
+                    <tr><th scope="row">open</th><td>SVO</td></tr>
+                    <tr><th scope="row">run</th><td>SV / SVC / SVO</td></tr>
+                    <tr><th scope="row">show</th><td>SVO / SVOO</td></tr>
+                    <tr><th scope="row">sleep</th><td>SV</td></tr>
+                    <tr><th scope="row">swim</th><td>SV</td></tr>
+                    <tr><th scope="row">teach</th><td>SVO / SVOO</td></tr>
+                    <tr><th scope="row">tell</th><td>SVO / SVOO</td></tr>
+                    <tr><th scope="row">turn</th><td>SVC</td></tr>
+                    <tr><th scope="row">use</th><td>SVO</td></tr>
+                    <tr><th scope="row">visit</th><td>SVO</td></tr>
+                    <tr><th scope="row">watch</th><td>SVO</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
           </div>
         </section>
       </section>
@@ -233,6 +276,6 @@
     </div>
 
     <audio id="bgmAudio" preload="none" loop muted></audio>
-    <script src="app.js?v=20260926-visual-3"></script>
+    <script src="app.js?v=20260926-verbs-1"></script>
   </body>
 </html>

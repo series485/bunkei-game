@@ -1521,6 +1521,39 @@ html[data-theme="light"] .match-intro strong {
   font-size: 0.76rem;
 }
 
+.rules-verb-catalog summary {
+  cursor: pointer;
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.rules-verb-catalog summary:focus-visible {
+  outline: 3px solid rgba(24, 184, 214, 0.55);
+  outline-offset: 4px;
+}
+
+.rules-verb-count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.rules-verb-content {
+  padding-top: 12px;
+}
+
+.rules-verb-table tbody th {
+  width: 28%;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.rules-verb-table tbody td {
+  font-weight: 700;
+  text-align: left;
+  white-space: normal;
+}
+
 .completion-translation {
   border: 1px solid var(--line);
   border-radius: 8px;

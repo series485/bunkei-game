@@ -16,10 +16,14 @@ const CPU_TURN_SETTLE_MS = 760;
 const SCORE_RANK_POINTS = [0, 8000, 4400, 2400, 1000];
 const SCORE_SPEED_MAX = 5200;
 const SCORE_SPEED_DECAY_SECONDS = 85;
+const SCORE_SPEED_TOTAL_WEIGHT = 0.3;
+const SCORE_SPEED_AVERAGE_WEIGHT = 0.7;
+const SCORE_SPEED_REFERENCE_TURNS = 10;
 const SCORE_HARD_BONUS = 1400;
-const SCORE_EXTRA_CPU_BONUS = 400;
+const SCORE_MULTI_CPU_BONUS = 300;
+const SCORE_OPPONENT_CARD_BONUS = 50;
 const SCORE_MISTAKE_PENALTY = 500;
-const SCORE_SHIHAN_MINIMUM = 14500;
+const SCORE_SHIHAN_MINIMUM = 14200;
 const FIELD_FLUSH_MESSAGE = "全員が出せなかったため、場が流れました";
 const SCORE_TITLES = [
   { minimum: SCORE_SHIHAN_MINIMUM, name: "文型師範", key: "shihan" },
@@ -118,6 +122,7 @@ const state = {
   drawnCardId: null,
   consecutivePasses: 0,
   humanDecisionMs: 0,
+  humanDecisionTurns: 0,
   humanTurnStartedAt: null,
   humanPenalties: 0,
   pendingCompletion: null,
@@ -127,6 +132,7 @@ const state = {
   endSequenceTimer: null,
   endSoundTimer: null,
   cpuTimer: null,
+  autoPassTimer: null,
 };
 
 const elements = {
@@ -576,6 +582,8 @@ function savedTheme() {
 
 function startGame() {
   clearTimeout(state.cpuTimer);
+  clearTimeout(state.autoPassTimer);
+  state.autoPassTimer = null;
   clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
   hideMatchIntro();
@@ -605,6 +613,7 @@ function startGame() {
   state.drawnCardId = null;
   state.consecutivePasses = 0;
   state.humanDecisionMs = 0;
+  state.humanDecisionTurns = 0;
   state.humanTurnStartedAt = null;
   state.humanPenalties = 0;
   state.pendingCompletion = null;
@@ -643,6 +652,8 @@ function startGame() {
 
 function returnToSetup() {
   clearTimeout(state.cpuTimer);
+  clearTimeout(state.autoPassTimer);
+  state.autoPassTimer = null;
   clearTimeout(state.completionRevealTimer);
   clearTimeout(state.completionTimer);
   hideMatchIntro();
@@ -707,7 +718,8 @@ function showMatchIntro() {
     sound.phase = "battle";
     if (sound.enabled) playBgm("battle", { restart: true });
     state.busy = false;
-    startHumanTurnClock();
+    if (autoPassHumanIfStuck()) return;
+    startHumanTurnClock({ countTurn: true });
     render();
     scheduleCpuTurn();
   }, duration);
@@ -725,7 +737,11 @@ function allActivePlayersPassed(passCount, activeCount) {
   return activeCount > 0 && passCount >= activeCount;
 }
 
-function startHumanTurnClock() {
+function shouldAutoPassHuman(player, drawCardCount, legalActionCount) {
+  return Boolean(player?.isHuman && player.rank === null && drawCardCount === 0 && legalActionCount === 0);
+}
+
+function startHumanTurnClock({ countTurn = false } = {}) {
   const player = currentPlayer();
   if (
     state.humanTurnStartedAt === null &&
@@ -735,6 +751,7 @@ function startHumanTurnClock() {
     !state.gameOver &&
     !state.pendingCompletion
   ) {
+    if (countTurn) state.humanDecisionTurns += 1;
     state.humanTurnStartedAt = performance.now();
   }
 }
@@ -745,19 +762,34 @@ function stopHumanTurnClock() {
   state.humanTurnStartedAt = null;
 }
 
-function calculateScore({ rank, playerCount, difficulty, decisionMs, penalties }) {
+function calculateScore({
+  rank,
+  playerCount,
+  difficulty,
+  decisionMs,
+  decisionTurns = 0,
+  penalties,
+  opponentHandCounts = [],
+}) {
   const safeRank = Math.min(Math.max(Number(rank) || playerCount, 1), SCORE_RANK_POINTS.length - 1);
   const rankPoints = SCORE_RANK_POINTS[safeRank];
   const seconds = Math.max(0, decisionMs) / 1000;
-  const speedPoints = Math.round((SCORE_SPEED_MAX * Math.exp(-seconds / SCORE_SPEED_DECAY_SECONDS)) / 10) * 10;
+  const averageTurnSeconds = seconds / Math.max(1, decisionTurns);
+  const effectiveSeconds = SCORE_SPEED_TOTAL_WEIGHT * seconds +
+    SCORE_SPEED_AVERAGE_WEIGHT * SCORE_SPEED_REFERENCE_TURNS * averageTurnSeconds;
+  const speedPoints = Math.round((SCORE_SPEED_MAX * Math.exp(-effectiveSeconds / SCORE_SPEED_DECAY_SECONDS)) / 10) * 10;
   const difficultyPoints = difficulty === "hard" ? SCORE_HARD_BONUS : 0;
-  const opponentPoints = Math.max(0, playerCount - 2) * SCORE_EXTRA_CPU_BONUS;
+  const opponentPoints = playerCount > 2 ? SCORE_MULTI_CPU_BONUS : 0;
+  const averageOpponentCards = opponentHandCounts.length
+    ? Math.floor(opponentHandCounts.reduce((sum, count) => sum + count, 0) / opponentHandCounts.length)
+    : 0;
+  const opponentCardPoints = averageOpponentCards * SCORE_OPPONENT_CARD_BONUS;
   const penaltyPoints = Math.max(0, penalties) * SCORE_MISTAKE_PENALTY;
   const total = Math.max(
     0,
-    Math.round((rankPoints + speedPoints + difficultyPoints + opponentPoints - penaltyPoints) / 10) * 10,
+    Math.round((rankPoints + speedPoints + difficultyPoints + opponentPoints + opponentCardPoints - penaltyPoints) / 10) * 10,
   );
-  return { total, rankPoints, speedPoints, difficultyPoints, opponentPoints, penaltyPoints };
+  return { total, rankPoints, speedPoints, averageTurnSeconds, difficultyPoints, opponentPoints, averageOpponentCards, opponentCardPoints, penaltyPoints };
 }
 
 function scoreTitleFor(score) {
@@ -1188,6 +1220,24 @@ function nextActiveIndex(fromIndex) {
   return fromIndex;
 }
 
+function autoPassHumanIfStuck() {
+  if (!state.gameStarted || state.gameOver || state.busy) return false;
+  const player = currentPlayer();
+  const drawCardCount = state.deck.length + state.discard.length;
+  if (drawCardCount > 0) return false;
+  const legalActionCount = player ? getLegalActionsForPlayer(player).length : 0;
+  if (!shouldAutoPassHuman(player, drawCardCount, legalActionCount)) return false;
+
+  state.busy = true;
+  render();
+  showToast("山札が空で出せるカードもないため、自動でパスします", "is-info", 2400);
+  state.autoPassTimer = window.setTimeout(() => {
+    state.autoPassTimer = null;
+    if (state.gameStarted && !state.gameOver && currentPlayer() === player) finishPass();
+  }, 520);
+  return true;
+}
+
 function advanceTurn() {
   if (state.gameOver) return finishGame();
   state.currentPlayerIndex = nextActiveIndex(state.currentPlayerIndex);
@@ -1195,7 +1245,8 @@ function advanceTurn() {
   state.hasDrawn = false;
   state.drawnCardId = null;
   state.busy = false;
-  startHumanTurnClock();
+  if (autoPassHumanIfStuck()) return;
+  startHumanTurnClock({ countTurn: true });
   render();
   scheduleCpuTurn();
 }
@@ -1264,6 +1315,8 @@ async function applyMisplayPenalty() {
 }
 
 function finishPass() {
+  clearTimeout(state.autoPassTimer);
+  state.autoPassTimer = null;
   if (currentPlayer()?.isHuman) stopHumanTurnClock();
   state.consecutivePasses += 1;
   const neededPasses = activePlayers().length;
@@ -1762,19 +1815,29 @@ function renderResult() {
     playerCount: state.players.length,
     difficulty: state.cpuDifficulty,
     decisionMs: state.humanDecisionMs,
+    decisionTurns: state.humanDecisionTurns,
     penalties: state.humanPenalties,
+    opponentHandCounts: state.players.filter((player) => !player.isHuman).map((player) => player.hand.length),
   });
   const scoreTitle = scoreTitleFor(score.total);
   const difficultyLabel = state.cpuDifficulty === "hard" ? "ハード" : "ノーマル";
   elements.resultScorePanel.dataset.rank = scoreTitle.key;
   elements.resultRank.textContent = scoreTitle.name;
   elements.resultScore.textContent = score.total.toLocaleString("ja-JP");
-  elements.resultScoreMeta.textContent = `${human.rank}位・${difficultyLabel}・CPU ${state.players.length - 1}人・手番合計 ${formatDecisionTime(state.humanDecisionMs)}`;
+  elements.resultScoreMeta.textContent = [
+    `${human.rank}位`,
+    difficultyLabel,
+    `CPU ${state.players.length - 1}人`,
+    `判断${state.humanDecisionTurns}手番`,
+    `合計 ${formatDecisionTime(state.humanDecisionMs)}`,
+    `平均 ${formatDecisionTime(score.averageTurnSeconds * 1000)}/手番`,
+  ].join("・");
   const parts = [
     `順位 ${score.rankPoints.toLocaleString("ja-JP")}`,
     `速さ ${score.speedPoints.toLocaleString("ja-JP")}`,
     `難易度 ${score.difficultyPoints.toLocaleString("ja-JP")}`,
     `人数 ${score.opponentPoints.toLocaleString("ja-JP")}`,
+    `CPU残り札 平均${score.averageOpponentCards}枚×50＝${score.opponentCardPoints.toLocaleString("ja-JP")}`,
   ];
   if (score.penaltyPoints) parts.push(`おてつき −${score.penaltyPoints.toLocaleString("ja-JP")}`);
   elements.resultScoreBreakdown.textContent = parts.join(" ／ ");
@@ -1833,6 +1896,16 @@ function escapeHtml(value) {
 
 function runSelfChecks() {
   const cards = buildDeck();
+  const listedVerbs = [...document.querySelectorAll("#verbCatalogBody tr")]
+    .map((row) => ({
+      lemma: row.querySelector("th")?.textContent.trim(),
+      patterns: row.querySelector("td")?.textContent.trim().split(/\s*\/\s*/),
+    }))
+    .sort((left, right) => left.lemma.localeCompare(right.lemma, "en"));
+  const actualVerbs = cards
+    .filter((card) => card.type === "verb")
+    .map((card) => ({ lemma: card.lemma, patterns: card.patterns }))
+    .sort((left, right) => left.lemma.localeCompare(right.lemma, "en"));
   const findAll = (label) => cards.filter((card) => card.label === label);
   const findOne = (label) => cards.find((card) => card.label === label);
   const [stationSubject, stationObject] = findAll("the station");
@@ -1897,6 +1970,7 @@ function runSelfChecks() {
     playerCount: 3,
     difficulty: "normal",
     decisionMs: 40000,
+    decisionTurns: 10,
     penalties: 0,
   }).total;
   const hardModerateScore = calculateScore({
@@ -1904,6 +1978,7 @@ function runSelfChecks() {
     playerCount: 3,
     difficulty: "hard",
     decisionMs: 90000,
+    decisionTurns: 10,
     penalties: 0,
   }).total;
   const secondPlaceScore = calculateScore({
@@ -1911,17 +1986,44 @@ function runSelfChecks() {
     playerCount: 3,
     difficulty: "normal",
     decisionMs: 40000,
+    decisionTurns: 10,
     penalties: 0,
   }).total;
-  const normalMaximumScore = calculateScore({
+  const speedExample = (seconds, turns) => calculateScore({
+    rank: 1,
+    playerCount: 3,
+    difficulty: "normal",
+    decisionMs: seconds * 1000,
+    decisionTurns: turns,
+    penalties: 0,
+  }).speedPoints;
+  const oneCpuScore = calculateScore({
+    rank: 1,
+    playerCount: 2,
+    difficulty: "normal",
+    decisionMs: 0,
+    penalties: 0,
+    opponentHandCounts: [0],
+  });
+  const twoCpuScore = calculateScore({
+    rank: 1,
+    playerCount: 3,
+    difficulty: "normal",
+    decisionMs: 0,
+    penalties: 0,
+    opponentHandCounts: [0, 7],
+  });
+  const threeCpuScore = calculateScore({
     rank: 1,
     playerCount: 4,
     difficulty: "normal",
     decisionMs: 0,
     penalties: 0,
-  }).total;
+    opponentHandCounts: [0, 4, 8],
+  });
 
   const checks = [
+    [JSON.stringify(listedVerbs) === JSON.stringify(actualVerbs), "収録動詞一覧とカードデータの一致"],
     [nounSurface(stationObject, "O1", reflexiveField, "SVO") === "itself", "再帰代名詞への変化"],
     [verbSurface(loveCard, reflexiveField) === "loves", "三人称単数現在"],
     [verbSurface(loveCard, pluralField) === "love", "複数主語の現在形"],
@@ -1942,6 +2044,13 @@ function runSelfChecks() {
     [typeCounts.noun === 50 && typeCounts.adjective === 20 && typeCounts.verb === 27, "品詞別カード配分"],
     [buildDeck().length === 97, "デッキ枚数"],
     [!allActivePlayersPassed(2, 3) && allActivePlayersPassed(3, 3), "全員パス時の場流し"],
+    [
+      shouldAutoPassHuman({ isHuman: true, rank: null }, 0, 0) &&
+        !shouldAutoPassHuman({ isHuman: true, rank: null }, 1, 0) &&
+        !shouldAutoPassHuman({ isHuman: true, rank: null }, 0, 1) &&
+        !shouldAutoPassHuman({ isHuman: false, rank: null }, 0, 0),
+      "山札切れ時の自動パス条件",
+    ],
     [COMPLETION_CUT_IN_MS === 4000, "完成カットイン4秒"],
     [COMPLETION_REVEAL_DELAY_MS <= 800 && Boolean(elements.completionBurst), "軽量な完成前演出"],
     [MATCH_INTRO_MS >= 1800 && Boolean(elements.matchIntro), "試合開始カットイン"],
@@ -1975,6 +2084,12 @@ function runSelfChecks() {
       "スロット表記の固定",
     ],
     [Math.abs(normalStrongScore - hardModerateScore) <= 150, "難易度と速さのスコア均衡"],
+    [
+      speedExample(100, 10) === 1600 &&
+        speedExample(200, 20) === 1130 &&
+        speedExample(200, 10) === 490,
+      "累計時間と平均時間を併用した速さ得点",
+    ],
     [normalStrongScore - secondPlaceScore >= 3000, "順位による大きなスコア差"],
     [Boolean(elements.resultScore && elements.resultScoreMeta && elements.resultScoreBreakdown), "スコア表示"],
     [Boolean(elements.resultSetupButton), "リザルトからスタート画面へ戻るボタン"],
@@ -1985,14 +2100,28 @@ function runSelfChecks() {
       "画面右側からのドロー演出",
     ],
     [
-      scoreTitleFor(SCORE_SHIHAN_MINIMUM).name === "文型師範" &&
-        scoreTitleFor(SCORE_SHIHAN_MINIMUM - 10).name === "文型師匠" &&
+      SCORE_SHIHAN_MINIMUM === 14200 &&
+        scoreTitleFor(14200).name === "文型師範" &&
+        scoreTitleFor(14190).name === "文型師匠" &&
         scoreTitleFor(10000).name === "文型師匠" &&
         scoreTitleFor(6000).name === "文型弟子" &&
         scoreTitleFor(5990).name === "文型見習い",
       "スコア称号の境界",
     ],
-    [normalMaximumScore < SCORE_SHIHAN_MINIMUM, "ノーマルでは師範に届かない難度"],
+    [
+      oneCpuScore.opponentPoints === 0 &&
+        twoCpuScore.opponentPoints === 300 &&
+        threeCpuScore.opponentPoints === 300,
+      "CPU人数ボーナス",
+    ],
+    [
+      twoCpuScore.averageOpponentCards === 3 &&
+        twoCpuScore.opponentCardPoints === 150 &&
+        twoCpuScore.total === 13650 &&
+        threeCpuScore.averageOpponentCards === 4 &&
+        threeCpuScore.opponentCardPoints === 200,
+      "終了時のCPU残り札ボーナス",
+    ],
     [END_CURTAIN_DURATION_MS >= 1400 && Boolean(elements.endCurtain), "ふすま終了演出"],
     [!document.querySelector(".result-burst"), "リザルト装飾文字の撤廃"],
   ];
