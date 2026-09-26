@@ -389,13 +389,6 @@ html[data-theme="dark"] .setup-title-line {
   box-shadow: 0 3px 8px rgba(36, 79, 59, 0.18);
 }
 
-.setup-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.73rem;
-  text-align: center;
-}
-
 .game-screen {
   display: grid;
   gap: 7px;
@@ -914,12 +907,13 @@ html[data-theme="dark"] .player-area.is-current {
 
 .hand {
   display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
   gap: 9px;
   min-height: 144px;
   margin-top: 5px;
   padding: 3px;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
+  overflow: visible;
 }
 
 .hand-card {
@@ -1634,10 +1628,32 @@ html[data-theme="light"] .match-intro strong {
 }
 
 .result-modal {
+  z-index: 0;
   width: min(100%, 700px);
   max-height: calc(100dvh - 36px);
   overflow-x: hidden;
   text-align: center;
+}
+
+.shihan-petals {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shihan-petal {
+  position: absolute;
+  top: -8vh;
+  left: var(--petal-left);
+  width: var(--petal-size);
+  height: var(--petal-size);
+  border-radius: 72% 4% 75% 12%;
+  background: linear-gradient(135deg, #fff9fb 5%, #ffd3e0 48%, #e887a5 100%);
+  box-shadow: inset -2px -2px 3px rgba(177, 69, 105, 0.18), 0 2px 5px rgba(34, 26, 30, 0.13);
+  opacity: 0;
+  animation: shihanPetalFall var(--petal-duration) linear var(--petal-delay) infinite;
 }
 
 .result-score {
@@ -1851,6 +1867,24 @@ html[data-theme="light"] .match-intro strong {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.98);
+  }
+}
+
+@keyframes shihanPetalFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -8vh, 0) rotate(-25deg);
+  }
+  12%,
+  82% {
+    opacity: 0.82;
+  }
+  50% {
+    transform: translate3d(var(--petal-sway), 56vh, 0) rotate(160deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--petal-drift), 118vh, 0) rotate(var(--petal-spin));
   }
 }
 
@@ -2163,8 +2197,12 @@ html[data-theme="light"] .match-intro strong {
     height: 12px;
   }
 
-  .sound-toggle #soundLabel,
-  #restartButton span {
+  .header-actions .sound-toggle .button-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sound-toggle #soundLabel {
     display: none;
   }
 
@@ -2265,14 +2303,25 @@ html[data-theme="light"] .match-intro strong {
   .hand {
     display: grid;
     grid-auto-flow: column;
-    grid-template-rows: repeat(2, 124px);
+    grid-template-columns: none;
+    grid-template-rows: repeat(var(--hand-rows, 1), 124px);
     grid-auto-columns: 104px;
     gap: 6px;
-    min-height: 258px;
+    min-height: 0;
     margin-top: 3px;
-    padding: 2px;
+    padding: 10px 2px 2px;
     overflow-x: auto;
     overflow-y: hidden;
+    scroll-snap-type: x proximity;
+  }
+
+  .hand.is-empty {
+    display: block;
+    overflow: visible;
+  }
+
+  .shihan-petal:nth-child(n + 19) {
+    display: none;
   }
 
   .hand-card {
@@ -2360,5 +2409,9 @@ html[data-theme="light"] .match-intro strong {
     opacity: var(--pattern-opacity);
     animation: none !important;
     transform: none;
+  }
+
+  .shihan-petals {
+    display: none;
   }
 }

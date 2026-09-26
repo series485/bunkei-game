@@ -8,11 +8,13 @@ const MATCH_INTRO_CHARGE_SOUND_MS = 1100;
 const MISPLAY_CUT_IN_MS = 950;
 const END_CURTAIN_DURATION_MS = 1550;
 const END_STAMP_SOUND_MS = 650;
-const CPU_THINK_DELAY_MS = Object.freeze({ normal: 1250, hard: 1000 });
-const CPU_CARD_TRAVEL_MS = 820;
+const SHIHAN_BGM_DELAY_MS = 1000;
+const SHIHAN_PETAL_COUNT = 24;
+const CPU_THINK_DELAY_MS = Object.freeze({ normal: 900, hard: 700 });
+const CPU_CARD_TRAVEL_MS = 420;
 const CPU_DRAW_TRAVEL_MS = 600;
 const CPU_AFTER_DRAW_DELAY_MS = Object.freeze({ normal: 700, hard: 560 });
-const CPU_TURN_SETTLE_MS = 760;
+const CPU_TURN_SETTLE_MS = 200;
 const SCORE_RANK_POINTS = [0, 8000, 4400, 2400, 1000];
 const SCORE_SPEED_MAX = 5200;
 const SCORE_SPEED_DECAY_SECONDS = 85;
@@ -35,6 +37,7 @@ const SCORE_TITLES = [
 const BGM_TRACKS = {
   setup: { src: "assets/audio/bgm-setup.mp3", volume: 0.3 },
   battle: { src: "assets/audio/bgm-battle.mp3", volume: 0.25 },
+  resultShihan: { src: "assets/audio/bgm-result-shihan.mp3", volume: 0.25 },
 };
 
 const SOUND_EFFECTS = {
@@ -102,7 +105,7 @@ const TYPE_META = {
 };
 
 const state = {
-  selectedCpuCount: 2,
+  selectedCpuCount: 1,
   cpuDifficulty: "normal",
   players: [],
   deck: [],
@@ -175,6 +178,7 @@ const elements = {
   completionNote: document.querySelector("#completionNote"),
   continueButton: document.querySelector("#continueButton"),
   resultModal: document.querySelector("#resultModal"),
+  shihanPetals: document.querySelector("#shihanPetals"),
   resultScorePanel: document.querySelector(".result-score"),
   resultRank: document.querySelector("#resultRank"),
   resultScore: document.querySelector("#resultScore"),
@@ -215,6 +219,7 @@ const sound = {
   effectBuffers: new Map(),
   activeEffects: new Set(),
   effectGeneration: 0,
+  shihanBgmTimer: null,
   fallbackEffects: new Map(
     Object.entries(SOUND_EFFECTS).map(([name, config]) => {
       const audio = new Audio(config.src);
@@ -307,6 +312,23 @@ function playEffect(name) {
   }).catch((error) => console.warn(`効果音を再生できませんでした: ${name}`, error));
 }
 
+function clearShihanBgmTimer() {
+  clearTimeout(sound.shihanBgmTimer);
+  sound.shihanBgmTimer = null;
+}
+
+function playShihanResultAudio() {
+  clearShihanBgmTimer();
+  if (!sound.enabled) return;
+  playEffect("rank-shihan");
+  sound.shihanBgmTimer = window.setTimeout(() => {
+    sound.shihanBgmTimer = null;
+    if (sound.phase === "result" && elements.resultScorePanel.dataset.rank === "shihan") {
+      playBgm("resultShihan", { restart: true });
+    }
+  }, SHIHAN_BGM_DELAY_MS);
+}
+
 function stopEffects() {
   sound.effectGeneration += 1;
   for (const source of sound.activeEffects) {
@@ -329,6 +351,7 @@ function setSoundEnabled(enabled) {
   for (const audio of sound.fallbackEffects.values()) audio.muted = !enabled;
   updateSoundButton();
   if (!enabled) {
+    clearShihanBgmTimer();
     elements.bgmAudio.pause();
     if (sound.bgmGain) sound.bgmGain.gain.value = 0;
     stopEffects();
@@ -339,6 +362,9 @@ function setSoundEnabled(enabled) {
     if (sound.phase === "setup") playBgm("setup");
     else if (sound.phase === "intro") playBgm("battle", { silent: true });
     else if (sound.phase === "battle") playBgm("battle");
+    else if (sound.phase === "result" && elements.resultScorePanel.dataset.rank === "shihan") {
+      playShihanResultAudio();
+    }
   }
 }
 
@@ -677,6 +703,7 @@ function startGame() {
   hideMatchIntro();
   clearTimeout(state.endSequenceTimer);
   clearTimeout(state.endSoundTimer);
+  clearShihanBgmTimer();
   state.endSequenceTimer = null;
   state.endSoundTimer = null;
   stopEffects();
@@ -684,6 +711,7 @@ function startGame() {
   elements.endCurtain.classList.remove("is-active");
   elements.endCurtain.setAttribute("aria-hidden", "true");
   closeModal(elements.resultModal);
+  showShihanPetals(false);
   closeModal(elements.completionModal);
 
   state.deck = buildDeck();
@@ -747,6 +775,7 @@ function returnToSetup() {
   hideMatchIntro();
   clearTimeout(state.endSequenceTimer);
   clearTimeout(state.endSoundTimer);
+  clearShihanBgmTimer();
   state.endSequenceTimer = null;
   state.endSoundTimer = null;
   stopEffects();
@@ -767,6 +796,7 @@ function returnToSetup() {
   closeModal(elements.rulesModal);
   closeModal(elements.completionModal);
   closeModal(elements.resultModal);
+  showShihanPetals(false);
   elements.gameScreen.classList.add("is-hidden");
   elements.setupScreen.classList.remove("is-hidden");
   elements.restartButton.classList.add("is-hidden");
@@ -1613,19 +1643,13 @@ function animateFlyingBack(source, target, options = {}) {
   const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
   const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
   const startRotation = options.rotate === false ? 0 : -8;
-  const middleRotation = options.rotate === false ? 0 : 7;
   const endRotation = options.rotate === false ? 0 : options.rotation ?? 0;
   const animation = clone.animate(
     [
       { transform: `translate(0, 0) rotate(${startRotation}deg) scale(1)`, opacity: 0.95 },
-      {
-        transform: `translate(${dx * 0.48}px, ${dy * 0.35 - 42}px) rotate(${middleRotation}deg) scale(1.08)`,
-        opacity: 1,
-        offset: 0.55,
-      },
-      { transform: `translate(${dx}px, ${dy}px) rotate(${endRotation}deg) scale(0.92)`, opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) rotate(${endRotation}deg) scale(0.96)`, opacity: 1 },
     ],
-    { duration: options.duration ?? 560, easing: "cubic-bezier(.22,.78,.27,1)" },
+    { duration: options.duration ?? 560, easing: "linear" },
   );
   return animation.finished.catch(() => undefined).finally(() => clone.remove());
 }
@@ -1676,6 +1700,7 @@ function finishGame() {
   state.gameOver = true;
   render();
   const rankKey = renderResult();
+  clearShihanBgmTimer();
   sound.phase = "ending";
   elements.bgmAudio.pause();
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1694,7 +1719,8 @@ function finishGame() {
     state.endSequenceTimer = null;
     sound.phase = "result";
     openModal(elements.resultModal);
-    playEffect(`rank-${rankKey}`);
+    if (rankKey === "shihan") playShihanResultAudio();
+    else playEffect(`rank-${rankKey}`);
   }, END_CURTAIN_DURATION_MS);
 }
 
@@ -1823,6 +1849,22 @@ function cardFooterHtml(card) {
   `;
 }
 
+function updateHandRows() {
+  const hand = elements.hand;
+  if (!state.gameStarted || !window.matchMedia("(max-width: 520px)").matches) {
+    hand.style.removeProperty("--hand-rows");
+    return;
+  }
+
+  const style = window.getComputedStyle(hand);
+  const columnWidth = parseFloat(style.gridAutoColumns);
+  const gap = parseFloat(style.columnGap);
+  const availableWidth = hand.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const visibleColumns = Math.max(1, Math.floor((availableWidth + gap) / (columnWidth + gap)));
+  const cardCount = state.players[0]?.hand.length ?? 0;
+  hand.style.setProperty("--hand-rows", String(Math.min(3, Math.max(1, Math.ceil(cardCount / visibleColumns)))));
+}
+
 function renderHand() {
   const player = state.players[0];
   const isHumanTurn = currentPlayer()?.isHuman && !state.busy && !state.gameOver && player.rank === null;
@@ -1831,9 +1873,11 @@ function renderHand() {
   elements.drawButton.disabled =
     !isHumanTurn || state.hasDrawn || state.deck.length + state.discard.length === 0;
   elements.drawButton.setAttribute("aria-label", "山札から1枚引く");
+  elements.hand.classList.toggle("is-empty", player.hand.length === 0);
 
   if (player.hand.length === 0) {
     elements.hand.innerHTML = `<div class="hand-empty">${player.rank ? `${player.rank}位で上がりました！` : "手札がありません"}</div>`;
+    updateHandRows();
     return;
   }
 
@@ -1861,6 +1905,7 @@ function renderHand() {
     button.addEventListener("dragend", () => clearDragState(button));
     installTouchDrag(button, card);
   });
+  updateHandRows();
 }
 
 function handleCardClick(cardId) {
@@ -1992,6 +2037,28 @@ function installTouchDrag(button, card) {
   });
 }
 
+function showShihanPetals(enabled) {
+  elements.shihanPetals.replaceChildren();
+  elements.shihanPetals.classList.toggle("is-hidden", !enabled);
+  if (!enabled) return;
+
+  const petals = document.createDocumentFragment();
+  for (let index = 0; index < SHIHAN_PETAL_COUNT; index += 1) {
+    const petal = document.createElement("span");
+    const duration = 9 + Math.random() * 6;
+    petal.className = "shihan-petal";
+    petal.style.setProperty("--petal-left", `${((index + Math.random() * 0.7) / SHIHAN_PETAL_COUNT) * 100}%`);
+    petal.style.setProperty("--petal-size", `${9 + Math.random() * 9}px`);
+    petal.style.setProperty("--petal-duration", `${duration}s`);
+    petal.style.setProperty("--petal-delay", `${-Math.random() * duration}s`);
+    petal.style.setProperty("--petal-sway", `${(Math.random() - 0.5) * 110}px`);
+    petal.style.setProperty("--petal-drift", `${(Math.random() - 0.5) * 160}px`);
+    petal.style.setProperty("--petal-spin", `${(Math.random() < 0.5 ? -1 : 1) * (300 + Math.random() * 280)}deg`);
+    petals.appendChild(petal);
+  }
+  elements.shihanPetals.appendChild(petals);
+}
+
 function renderResult() {
   const human = state.players[0];
   const score = calculateScore({
@@ -2006,6 +2073,7 @@ function renderResult() {
   const scoreTitle = scoreTitleFor(score.total);
   const difficultyLabel = state.cpuDifficulty === "hard" ? "ハード" : "ノーマル";
   elements.resultScorePanel.dataset.rank = scoreTitle.key;
+  showShihanPetals(scoreTitle.key === "shihan");
   elements.resultRank.textContent = scoreTitle.name;
   elements.resultScore.textContent = score.total.toLocaleString("ja-JP");
   elements.resultScoreMeta.textContent = [
@@ -2297,10 +2365,11 @@ function runSelfChecks() {
       "場流し通知",
     ],
     [
-      CPU_THINK_DELAY_MS.normal >= 1200 &&
+      CPU_THINK_DELAY_MS.normal >= 800 &&
         CPU_THINK_DELAY_MS.hard < CPU_THINK_DELAY_MS.normal &&
         CPU_AFTER_DRAW_DELAY_MS.hard < CPU_AFTER_DRAW_DELAY_MS.normal &&
-        CPU_CARD_TRAVEL_MS >= 800,
+        CPU_CARD_TRAVEL_MS <= 450 &&
+        CPU_TURN_SETTLE_MS <= 250,
       "難易度別のCPU表示テンポ",
     ],
     [!handleHumanDraw.toString().includes("state.selectedCardId = card.id"), "ドロー後の自動選択なし"],
@@ -2416,6 +2485,8 @@ document.addEventListener("click", (event) => {
   const button = event.target instanceof Element ? event.target.closest("button") : null;
   if (button && !button.disabled) playEffect("click");
 });
+
+window.addEventListener("resize", updateHandRows);
 
 applyTheme(savedTheme());
 updateSoundButton();

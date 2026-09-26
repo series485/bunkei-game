@@ -9,7 +9,7 @@
     />
     <title>文型道場 | 試作版</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="dojo.css?v=20260926-verbs-2" />
+    <link rel="stylesheet" href="dojo.css?v=20260926-hand-shihan-2" />
   </head>
   <body>
     <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -70,8 +70,8 @@
           <div class="setup-controls">
             <label for="cpuCount">対戦するCPU</label>
             <div class="segmented segmented-three" id="cpuCount" role="radiogroup" aria-label="CPUの人数">
-              <button type="button" data-cpu-count="1" role="radio" aria-checked="false">1人</button>
-              <button type="button" data-cpu-count="2" role="radio" aria-checked="true" class="is-selected">2人</button>
+              <button type="button" data-cpu-count="1" role="radio" aria-checked="true" class="is-selected">1人</button>
+              <button type="button" data-cpu-count="2" role="radio" aria-checked="false">2人</button>
               <button type="button" data-cpu-count="3" role="radio" aria-checked="false">3人</button>
             </div>
             <label for="cpuDifficulty">CPUのレベル</label>
@@ -83,7 +83,6 @@
               <img class="button-icon" src="assets/icons/play.svg" alt="" aria-hidden="true" />
               <span>ゲームをはじめる</span>
             </button>
-            <p class="setup-note">おすすめ：あなた＋CPU 2人</p>
           </div>
         </div>
       </section>
@@ -228,6 +227,7 @@
     </div>
 
     <div id="resultModal" class="modal-backdrop is-hidden" role="presentation">
+      <div id="shihanPetals" class="shihan-petals is-hidden" aria-hidden="true"></div>
       <section class="modal result-modal" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
         <h2 id="resultTitle">稽古結果</h2>
         <section class="result-score" aria-labelledby="resultScoreTitle">
@@ -259,6 +259,6 @@
     </div>
 
     <audio id="bgmAudio" preload="none" loop muted></audio>
-    <script src="app.js?v=20260926-verbs-2"></script>
+    <script src="app.js?v=20260926-hand-shihan-2"></script>
   </body>
 </html>
