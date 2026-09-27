@@ -2215,20 +2215,17 @@ html[data-theme="light"] .match-intro strong {
   }
 
   .opponents {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 5px;
     padding-bottom: 2px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
   }
 
   .opponent {
-    flex: 0 0 min(330px, 91%);
     grid-template-columns: auto minmax(78px, 1fr) auto;
     gap: 5px;
     min-height: 47px;
     padding: 5px 7px;
-    scroll-snap-align: start;
   }
 
   .cpu-hand-visual {

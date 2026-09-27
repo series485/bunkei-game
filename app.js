@@ -25,7 +25,7 @@ const SCORE_HARD_BONUS = 1400;
 const SCORE_MULTI_CPU_BONUS = 300;
 const SCORE_OPPONENT_CARD_BONUS = 50;
 const SCORE_MISTAKE_PENALTY = 500;
-const SCORE_SHIHAN_MINIMUM = 14200;
+const SCORE_SHIHAN_MINIMUM = 14000;
 const FIELD_FLUSH_MESSAGE = "全員が出せなかったため、場が流れました";
 const SCORE_TITLES = [
   { minimum: SCORE_SHIHAN_MINIMUM, name: "文型師範", key: "shihan" },
@@ -412,11 +412,83 @@ function adjective(label, gloss, jpPredicate, jpAdverbial, jpBeforeMama = jpPred
   };
 }
 
+const ADJECTIVE_DRAW_COUNT = 20;
+const ADJECTIVE_POOL = [
+  adjective("happy", "幸せな", "幸せだ", "幸せに", "幸せな"),
+  adjective("quiet", "静かな", "静かだ", "静かに", "静かな"),
+  adjective("busy", "忙しい", "忙しい", "忙しく", "忙しい"),
+  adjective("ready", "準備ができた", "準備ができている", "準備ができるように", "準備ができた"),
+  adjective("open", "開いている", "開いている", "開いた状態に", "開いた"),
+  adjective("clean", "清潔な", "清潔だ", "清潔に", "清潔な"),
+  adjective("famous", "有名な", "有名だ", "有名に", "有名な"),
+  adjective("kind", "親切な", "親切だ", "親切に", "親切な"),
+  adjective("tired", "疲れた", "疲れている", "疲れた状態に", "疲れた"),
+  adjective("safe", "安全な", "安全だ", "安全に", "安全な"),
+  adjective("empty", "空の", "空だ", "空に", "空の"),
+  adjective("beautiful", "美しい", "美しい", "美しく", "美しい"),
+  adjective("important", "重要な", "重要だ", "重要に", "重要な"),
+  adjective("useful", "役に立つ", "役に立つ", "役に立つように", "役に立つ"),
+  adjective("difficult", "難しい", "難しい", "難しく", "難しい"),
+  adjective("popular", "人気のある", "人気がある", "人気が出るように", "人気のある"),
+  adjective("warm", "暖かい", "暖かい", "暖かく", "暖かい"),
+  adjective("cold", "冷たい・寒い", "冷たい", "冷たく", "冷たい"),
+  adjective("young", "若い", "若い", "若く", "若い"),
+  adjective("strong", "強い", "強い", "強く", "強い"),
+
+  adjective("big", "大きい", "大きい", "大きく", "大きい"),
+  adjective("small", "小さい", "小さい", "小さく", "小さい"),
+  adjective("long", "長い", "長い", "長く", "長い"),
+  adjective("short", "短い", "短い", "短く", "短い"),
+  adjective("old", "古い・年老いた", "古い", "古く", "古い"),
+  adjective("new", "新しい", "新しい", "新しく", "新しい"),
+  adjective("nice", "すてきな", "すてきだ", "すてきに", "すてきな"),
+  adjective("special", "特別な", "特別だ", "特別に", "特別な"),
+  adjective("heavy", "重い", "重い", "重く", "重い"),
+  adjective("soft", "柔らかい", "柔らかい", "柔らかく", "柔らかい"),
+
+  adjective("hot", "暑い・熱い", "熱い", "熱く", "熱い"),
+  adjective("dirty", "汚い", "汚い", "汚く", "汚い"),
+  adjective("full", "いっぱいの", "いっぱいだ", "いっぱいに", "いっぱいの"),
+  adjective("closed", "閉まっている", "閉まっている", "閉まった状態に", "閉まった"),
+  adjective("wet", "ぬれた", "ぬれている", "ぬれた状態に", "ぬれた"),
+  adjective("dry", "乾いた", "乾いている", "乾いた状態に", "乾いた"),
+  adjective("dark", "暗い", "暗い", "暗く", "暗い"),
+  adjective("bright", "明るい", "明るい", "明るく", "明るい"),
+  adjective("strange", "変な", "変だ", "変に", "変な"),
+  adjective("different", "異なる", "異なる", "異なるように", "異なる"),
+
+  adjective("sad", "悲しい", "悲しい", "悲しく", "悲しい"),
+  adjective("angry", "怒った", "怒っている", "怒るように", "怒った"),
+  adjective("hungry", "おなかがすいた", "おなかがすいている", "おなかがすくように", "おなかがすいた"),
+  adjective("thirsty", "のどが渇いた", "のどが渇いている", "のどが渇くように", "のどが渇いた"),
+  adjective("sleepy", "眠い", "眠い", "眠く", "眠い"),
+  adjective("sick", "病気の", "病気だ", "病気に", "病気の"),
+  adjective("afraid", "怖がっている", "怖がっている", "怖がるように", "怖がった"),
+  adjective("nervous", "緊張した", "緊張している", "緊張するように", "緊張した"),
+  adjective("lonely", "孤独な", "孤独だ", "孤独に", "孤独な"),
+  adjective("excited", "わくわくした", "わくわくしている", "わくわくするように", "わくわくした"),
+
+  adjective("good", "良い", "良い", "良く", "良い"),
+  adjective("bad", "悪い", "悪い", "悪く", "悪い"),
+  adjective("easy", "簡単な", "簡単だ", "簡単に", "簡単な"),
+  adjective("interesting", "面白い", "面白い", "面白く", "面白い"),
+  adjective("boring", "退屈な", "退屈だ", "退屈に", "退屈な"),
+  adjective("dangerous", "危険な", "危険だ", "危険に", "危険な"),
+  adjective("weak", "弱い", "弱い", "弱く", "弱い"),
+  adjective("noisy", "うるさい", "うるさい", "うるさく", "うるさい"),
+  adjective("simple", "単純な", "単純だ", "単純に", "単純な"),
+  adjective("normal", "普通の", "普通だ", "普通に", "普通の"),
+];
+
+function drawMatchAdjectives() {
+  return shuffle(ADJECTIVE_POOL).slice(0, ADJECTIVE_DRAW_COUNT);
+}
+
 const VERB_DRAW_QUOTAS = Object.freeze({ SV: 6, SVC: 5, SVO: 7, SVOO: 5, SVOC: 4 });
 
 const VERB_POOL = [
   // 主役の文型ごとに抽選し、各対戦では27語を使用する。
-  verb("run", "runs", "走る／Oを経営する／Cになる", ["SV", "SVC", "SVO"], { SVC: ["adjective"] }),
+  verb("run", "runs", "走る／Oを経営する", ["SV", "SVO"]),
   verb("sleep", "sleeps", "眠る", ["SV"]),
   verb("arrive", "arrives", "到着する", ["SV"]),
   verb("laugh", "laughs", "笑う", ["SV"]),
@@ -617,31 +689,8 @@ function buildDeck() {
     noun({ label: "the window", gloss: "その窓", entity: "window", reflexive: "itself" }),
   ];
 
-  const adjectiveDefinitions = [
-    adjective("happy", "幸せな", "幸せだ", "幸せに", "幸せな"),
-    adjective("quiet", "静かな", "静かだ", "静かに", "静かな"),
-    adjective("busy", "忙しい", "忙しい", "忙しく", "忙しい"),
-    adjective("ready", "準備ができた", "準備ができている", "準備ができるように", "準備ができた"),
-    adjective("open", "開いている", "開いている", "開いた状態に", "開いた"),
-    adjective("clean", "清潔な", "清潔だ", "清潔に", "清潔な"),
-    adjective("famous", "有名な", "有名だ", "有名に", "有名な"),
-    adjective("kind", "親切な", "親切だ", "親切に", "親切な"),
-    adjective("tired", "疲れた", "疲れている", "疲れた状態に", "疲れた"),
-    adjective("safe", "安全な", "安全だ", "安全に", "安全な"),
-    adjective("empty", "空の", "空だ", "空に", "空の"),
-    adjective("beautiful", "美しい", "美しい", "美しく", "美しい"),
-    adjective("important", "重要な", "重要だ", "重要に", "重要な"),
-    adjective("useful", "役に立つ", "役に立つ", "役に立つように", "役に立つ"),
-    adjective("difficult", "難しい", "難しい", "難しく", "難しい"),
-    adjective("popular", "人気のある", "人気がある", "人気が出るように", "人気のある"),
-    adjective("warm", "暖かい", "暖かい", "暖かく", "暖かい"),
-    adjective("cold", "冷たい・寒い", "冷たい", "冷たく", "冷たい"),
-    adjective("young", "若い", "若い", "若く", "若い"),
-    adjective("strong", "強い", "強い", "強く", "強い"),
-  ];
-
   const cards = [];
-  for (const definition of [...nounDefinitions, ...adjectiveDefinitions, ...drawMatchVerbs()]) {
+  for (const definition of [...nounDefinitions, ...drawMatchAdjectives(), ...drawMatchVerbs()]) {
     const copies = definition.copies ?? 1;
     for (let copy = 0; copy < copies; copy += 1) {
       cards.push({ ...definition, id: `card-${serial++}` });
@@ -1233,7 +1282,7 @@ function japaneseTranslation(pattern, field = state.field) {
 
   if (pattern === "SVC") {
     if (lemma === "be") return `${s}は${japaneseComplement(oCard, "predicate")}。`;
-    if (["become", "turn", "get", "run", "go", "grow"].includes(lemma)) {
+    if (["become", "turn", "get", "go", "grow"].includes(lemma)) {
       return `${s}は${japaneseComplement(oCard, "adverbial")}なる。`;
     }
     if (lemma === "look" || lemma === "seem") return `${s}は${japaneseComplement(oCard, "adverbial")}見える。`;
@@ -2158,7 +2207,8 @@ function runSelfChecks() {
     .map((card) => ({ lemma: card.lemma, patterns: card.patterns }))
     .sort((left, right) => left.lemma.localeCompare(right.lemma, "en"));
   const findAll = (label) => cards.filter((card) => card.label === label);
-  const findOne = (label) => cards.find((card) => card.label === label) ?? VERB_POOL.find((card) => card.label === label);
+  const findOne = (label) => cards.find((card) => card.label === label) ??
+    ADJECTIVE_POOL.find((card) => card.label === label) ?? VERB_POOL.find((card) => card.label === label);
   const [stationSubject, stationObject] = findAll("the station");
   const loveCard = findOne("love");
   const runCard = findOne("run");
@@ -2197,6 +2247,11 @@ function runSelfChecks() {
     V: { card: becomeCard },
     O1: { card: quietCard },
   };
+  const runSvField = {
+    ...emptyField(),
+    S: { card: tomCard },
+    V: { card: runCard },
+  };
   const runSvcField = {
     ...emptyField(),
     S: { card: tomCard },
@@ -2227,6 +2282,7 @@ function runSelfChecks() {
     .filter((card) => card.type === "verb")
     .reduce((counts, card) => ({ ...counts, [card.focusPattern]: (counts[card.focusPattern] ?? 0) + 1 }), {});
   const sampledVerbDraws = Array.from({ length: 16 }, drawMatchVerbs);
+  const sampledAdjectiveDraws = Array.from({ length: 16 }, drawMatchAdjectives);
   const typeCounts = cards.reduce(
     (counts, card) => ({ ...counts, [card.type]: (counts[card.type] ?? 0) + 1 }),
     {},
@@ -2291,6 +2347,11 @@ function runSelfChecks() {
   const checks = [
     [JSON.stringify(listedVerbs) === JSON.stringify(actualVerbs), "収録動詞一覧とカードデータの一致"],
     [VERB_POOL.length === 81 && new Set(VERB_POOL.map((card) => card.lemma)).size === 81, "収録動詞81語の重複なし"],
+    [ADJECTIVE_POOL.length === 60 && new Set(ADJECTIVE_POOL.map((card) => card.label)).size === 60,
+      "収録形容詞60語の重複なし"],
+    [sampledAdjectiveDraws.every((draw) =>
+      draw.length === ADJECTIVE_DRAW_COUNT && new Set(draw.map((card) => card.label)).size === ADJECTIVE_DRAW_COUNT),
+    "形容詞を毎回20語抽選"],
     [PATTERN_ORDER.every((pattern) =>
       VERB_POOL.filter((card) => card.focusPattern === pattern).length >= VERB_DRAW_QUOTAS[pattern]), "文型別の抽選候補数"],
     [nounSurface(stationObject, "O1", reflexiveField, "SVO") === "itself", "再帰代名詞への変化"],
@@ -2301,9 +2362,10 @@ function runSelfChecks() {
     [sentenceText(reflexiveField, "SVO") === "The station loves itself.", "英文の空白"],
     [JSON.stringify(getCompletedPatterns(svcField)) === JSON.stringify(["SVC"]), "O/CのSVC判定"],
     [sentenceText(svcField, "SVC") === "Tom becomes quiet.", "O/CでのSVC完成"],
-    [JSON.stringify(runCard.patterns) === JSON.stringify(["SV", "SVC", "SVO"]), "runの三文型"],
+    [JSON.stringify(runCard.patterns) === JSON.stringify(["SV", "SVO"]) &&
+      getCandidatePatterns(runSvcField).length === 0, "runのSV/SVO判定とSVC禁止"],
     [
-      japaneseTranslation("SVC", runSvcField) === "トムは静かになる。" &&
+      japaneseTranslation("SV", runSvField) === "トムは走る。" &&
         japaneseTranslation("SVO", runSvoField) === "トムはその駅を経営する。",
       "runの文型別和訳",
     ],
@@ -2319,6 +2381,8 @@ function runSelfChecks() {
     [new Set(Array.from({ length: 8 }, () =>
       buildDeck().filter((card) => card.type === "verb").map((card) => card.lemma).sort().join(","))).size > 1,
     "対戦ごとに動詞が変わる"],
+    [new Set(sampledAdjectiveDraws.map((draw) => draw.map((card) => card.label).sort().join(","))).size > 1,
+      "対戦ごとに形容詞が変わる"],
     [JSON.stringify(getCompletedPatterns(causativeField)) === JSON.stringify(["SVOC"]) &&
       sentenceText(causativeField, "SVOC") === "I make Tom cry." &&
       surfaceForSlot("X", causativeField, "SVOC") === "cry" &&
@@ -2405,9 +2469,9 @@ function runSelfChecks() {
       "画面右側からのドロー演出",
     ],
     [
-      SCORE_SHIHAN_MINIMUM === 14200 &&
-        scoreTitleFor(14200).name === "文型師範" &&
-        scoreTitleFor(14190).name === "文型師匠" &&
+      SCORE_SHIHAN_MINIMUM === 14000 &&
+        scoreTitleFor(14000).name === "文型師範" &&
+        scoreTitleFor(13990).name === "文型師匠" &&
         scoreTitleFor(10000).name === "文型師匠" &&
         scoreTitleFor(6000).name === "文型弟子" &&
         scoreTitleFor(5990).name === "文型見習い",
